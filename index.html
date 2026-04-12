@@ -362,7 +362,7 @@
 
 <script>
   let rangeStart, rangeEnd, dataMin, dataMax;
-  let store = { cpi: [], mortgage: [], hpi: [], sp500: [] };
+  let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [] };
   let chart = null;
   const hiddenSeries = new Set();
   let _panActive = false;
@@ -414,7 +414,7 @@
       const res = await fetch('fred_data.json');
       if (!res.ok) throw new Error();
       const data = await res.json();
-      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, sp500: data.sp500 || [] };
+      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, nasdaq: data.nasdaq || [] };
 
       if (data.fetched_at) {
         document.getElementById('fetchedOn').textContent = data.fetched_at;
@@ -586,7 +586,7 @@
     const hpiFilt = filteredSeries(store.hpi);
     const cpiFilt = filteredSeries(store.cpi);
     const mrtFilt = filteredSeries(store.mortgage);
-    const sp5Filt = filteredSeries(store.sp500);
+    const sp5Filt = filteredSeries(store.nasdaq);
 
     // Union of all dates in range, sorted
     const dates = [...new Set([
@@ -664,7 +664,7 @@
         ...filteredSeries(store.hpi).map(d => d.value),
         ...filteredSeries(store.cpi).map(d => d.value),
         ...filteredSeries(store.mortgage).map(d => d.value),
-        ...filteredSeries(store.sp500).map(d => d.value),
+        ...filteredSeries(store.nasdaq).map(d => d.value),
       ].filter(v => v != null);
       if (allVis.length) {
         const yMin = Math.min(...allVis);
