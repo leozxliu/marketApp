@@ -3,147 +3,454 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>US Housing, Inflation & Mortgage Rates</title>
+  <title>US Housing & Economic Indicators</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f18;
+      --surface:   #161926;
+      --surface2:  #1e2235;
+      --border:    #252a3a;
+      --text:      #e4e6f0;
+      --muted:     #6b7194;
+      --accent:    #4fc3f7;
+      --hpi:       #4fc3f7;
+      --cpi:       #ff6b6b;
+      --mrt:       #6bcb77;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f1117; color: #e0e0e0;
-      min-height: 100vh; display: flex; flex-direction: column;
-      align-items: center; padding: 32px 16px 48px; gap: 18px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+      gap: 20px;
     }
-    h1 { font-size: 1.4rem; font-weight: 600; text-align: center; }
-    .subtitle { font-size: 0.82rem; color: #777; text-align: center; }
-    .banner {
-      width: 100%; max-width: 980px; border-radius: 10px;
-      padding: 16px 20px; font-size: 0.85rem; line-height: 1.75; display: none;
+
+    /* ── Header ── */
+    .header {
+      width: 100%;
+      max-width: 1020px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
     }
-    .banner.info { background: #0d1f2d; border: 1px solid #1a5276; color: #7ec8e3; }
-    .banner.warn { background: #2a1a0a; border: 1px solid #7c4a10; color: #f0b060; }
-    .banner code {
-      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 4px; padding: 1px 8px; font-family: monospace; font-size: 0.88em;
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
-    .banner a { color: #4fc3f7; text-decoration: none; }
-    .banner a:hover { text-decoration: underline; }
-    .panel { width: 100%; max-width: 980px; background: #1a1d27; border-radius: 12px; padding: 20px 24px; }
-    .slider-row { display: flex; flex-direction: column; gap: 14px; }
-    .slider-labels { display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; color: #888; }
-    .slider-labels b { color: #e0e0e0; font-size: 0.92rem; }
-    .noUi-target { background: #0f1117; border: 1px solid #2e3142; border-radius: 4px; box-shadow: none; }
-    .noUi-connect { background: #4fc3f7; }
+    h1 {
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(79,195,247,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(79,195,247,0.25);
+      white-space: nowrap;
+    }
+    .subtitle {
+      font-size: 0.83rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    .updated-tag {
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 10px;
+    }
+    .updated-tag span { color: var(--text); }
+
+    /* ── Stat cards ── */
+    .cards {
+      width: 100%;
+      max-width: 1020px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 600px) { .cards { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+      transition: border-color 0.2s;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 14px 14px 0 0;
+    }
+    .card.hpi::before { background: var(--hpi); }
+    .card.cpi::before { background: var(--cpi); }
+    .card.mrt::before { background: var(--mrt); }
+    .card:hover { border-color: #353c55; }
+
+    .card-label { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
+    .card-value { font-size: 2rem; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+    .card.hpi .card-value { color: var(--hpi); }
+    .card.cpi .card-value { color: var(--cpi); }
+    .card.mrt .card-value { color: var(--mrt); }
+    .card-sub { font-size: 0.78rem; color: var(--muted); }
+    .card-year { font-size: 0.72rem; color: #3d4460; position: absolute; top: 14px; right: 16px; }
+
+    /* ── Chart panel ── */
+    .chart-panel {
+      width: 100%;
+      max-width: 1020px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 28px 22px;
+    }
+
+    /* ── Controls inside chart panel ── */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .preset-group {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .preset-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 5px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preset-btn:hover { background: #252a3a; color: var(--text); border-color: #3a4060; }
+    .preset-btn.active { background: rgba(79,195,247,0.12); color: var(--accent); border-color: rgba(79,195,247,0.35); }
+
+    .range-label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .range-label b { color: var(--text); }
+
+    /* ── Slider ── */
+    .slider-wrap { margin-bottom: 20px; padding: 6px 4px 4px; }
+    .noUi-target { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; box-shadow: none; height: 6px; }
+    .noUi-connect { background: var(--accent); opacity: 0.7; }
     .noUi-handle {
-      background: #4fc3f7; border: none; border-radius: 50%;
-      width: 16px !important; height: 16px !important;
-      top: -5px !important; right: -8px !important;
-      box-shadow: 0 0 0 3px rgba(79,195,247,0.25); cursor: grab;
+      background: var(--accent); border: none; border-radius: 50%;
+      width: 18px !important; height: 18px !important;
+      top: -7px !important; right: -9px !important;
+      box-shadow: 0 0 0 4px rgba(79,195,247,0.18);
+      cursor: grab; transition: box-shadow 0.15s;
     }
-    .noUi-handle:active { cursor: grabbing; }
+    .noUi-handle:active { cursor: grabbing; box-shadow: 0 0 0 6px rgba(79,195,247,0.28); }
     .noUi-handle::before, .noUi-handle::after { display: none; }
     .noUi-tooltip {
-      background: #1a1d27; border: 1px solid #333;
-      color: #e0e0e0; font-size: 0.75rem; padding: 2px 7px; border-radius: 4px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-size: 0.75rem; padding: 3px 8px; border-radius: 6px;
     }
-    .chart-wrap {
-      width: 100%; max-width: 980px; background: #1a1d27;
-      border-radius: 12px; padding: 24px 24px 16px;
-      box-shadow: 0 4px 32px rgba(0,0,0,0.45);
+
+    /* ── Legend toggles ── */
+    .legend-toggles {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
     }
-    .status { font-size: 0.82rem; color: #777; text-align: center; min-height: 18px; }
-    .status.error   { color: #ef5350; }
-    .status.loading { color: #4fc3f7; }
-    .sources { font-size: 0.72rem; color: #555; text-align: center; line-height: 1.85; max-width: 980px; }
-    .sources a { color: #4fc3f7; text-decoration: none; }
-    .sources a:hover { text-decoration: underline; }
-    .sources strong { color: #777; }
+    .toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--text);
+      user-select: none;
+    }
+    .toggle-btn .dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    .toggle-btn.hidden-series { border-style: dashed; opacity: 0.45; }
+    .toggle-btn:hover { border-color: #3a4060; }
+
+    canvas { display: block; }
+
+    /* ── Footer ── */
+    .footer {
+      width: 100%;
+      max-width: 1020px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px 20px;
+      font-size: 0.73rem;
+      color: #3d435e;
+    }
+    .footer a { color: #4a5270; text-decoration: none; transition: color 0.15s; }
+    .footer a:hover { color: var(--muted); }
+    .footer-sep { color: #252a3a; }
+
+    /* ── Error state ── */
+    .error-msg {
+      width: 100%; max-width: 1020px;
+      background: #1c0f0f; border: 1px solid #4a1a1a;
+      border-radius: 12px; padding: 20px 24px;
+      font-size: 0.85rem; color: #e07070; text-align: center;
+      display: none;
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 40px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Loading overlay ── */
+    #loadingWrap { text-align: center; }
+    #loadingWrap .load-text { font-size: 0.82rem; color: var(--muted); margin-top: 10px; }
   </style>
 </head>
 <body>
 
-  <h1>United States: House Prices, Inflation &amp; Mortgage Rates</h1>
-  <p class="subtitle">Data from FRED (Federal Reserve Bank of St. Louis) &middot; Earliest available through present</p>
-
-  <div class="banner warn" id="noDataBanner">
-    <strong>&#9888; No data file found.</strong> Run the following command once to fetch data from FRED, then reload this page:<br />
-    <code>cd "/Users/leonardoliu/Desktop/git/marketApp" &amp;&amp; python3 fetch_fred_data.py</code>
-  </div>
-
-  <div class="banner info" id="dataBanner">
-    Data loaded from <code>fred_data.json</code> &mdash; fetched on <span id="fetchedOn">&mdash;</span>.
-    &nbsp; To refresh: <code>python3 fetch_fred_data.py</code> then reload.
-  </div>
-
-  <div class="panel" id="sliderPanel" style="display:none">
-    <div class="slider-row">
-      <div class="slider-labels">
-        <span>Time Range: &nbsp;<b id="rangeDisplay">&mdash;</b></span>
-        <span style="font-size:0.72rem;color:#444">CPI from 1948 &middot; Mortgage from 1971 &middot; HPI from 1976</span>
-      </div>
-      <div id="yearSlider"></div>
+  <div class="header">
+    <div class="header-top">
+      <h1>US Housing &amp; Economic Indicators</h1>
+      <span class="badge">Annual Data</span>
+    </div>
+    <div class="subtitle">
+      House Price Index &nbsp;·&nbsp; Inflation Rate &nbsp;·&nbsp; 30-Year Mortgage Rate
+    </div>
+    <div class="updated-tag" id="updatedTag" style="display:none">
+      Last updated: <span id="fetchedOn">—</span>
     </div>
   </div>
 
-  <div id="status" class="status loading">Loading fred_data.json&hellip;</div>
+  <div class="error-msg" id="errorMsg">
+    Data is temporarily unavailable. Please try again later.
+  </div>
 
-  <div class="chart-wrap">
+  <div id="loadingWrap">
+    <div class="spinner"></div>
+    <p class="load-text">Loading data…</p>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="cards" id="cards" style="display:none">
+    <div class="card hpi">
+      <span class="card-year" id="hpiYear"></span>
+      <div class="card-label">House Price Index</div>
+      <div class="card-value" id="hpiVal">—</div>
+      <div class="card-sub">Year-over-year change</div>
+    </div>
+    <div class="card cpi">
+      <span class="card-year" id="cpiYear"></span>
+      <div class="card-label">Inflation Rate (CPI)</div>
+      <div class="card-value" id="cpiVal">—</div>
+      <div class="card-sub">Year-over-year change</div>
+    </div>
+    <div class="card mrt">
+      <span class="card-year" id="mrtYear"></span>
+      <div class="card-label">30-Year Mortgage Rate</div>
+      <div class="card-value" id="mrtVal">—</div>
+      <div class="card-sub">Annual average</div>
+    </div>
+  </div>
+
+  <!-- Chart panel -->
+  <div class="chart-panel" id="chartPanel" style="display:none">
+    <div class="controls">
+      <div class="preset-group" id="presetGroup">
+        <button class="preset-btn" onclick="setPreset(10)">10Y</button>
+        <button class="preset-btn" onclick="setPreset(20)">20Y</button>
+        <button class="preset-btn" onclick="setPreset(30)">30Y</button>
+        <button class="preset-btn" onclick="setPreset(50)">50Y</button>
+        <button class="preset-btn" onclick="setPreset(0)">All</button>
+      </div>
+      <div class="range-label">Range: <b id="rangeDisplay">—</b></div>
+    </div>
+
+    <div class="slider-wrap">
+      <div id="yearSlider"></div>
+    </div>
+
+    <div class="legend-toggles" id="legendToggles">
+      <button class="toggle-btn" id="tog-hpi" onclick="toggleSeries(0)">
+        <span class="dot" style="background:#4fc3f7"></span> House Price Index YoY
+      </button>
+      <button class="toggle-btn" id="tog-cpi" onclick="toggleSeries(1)">
+        <span class="dot" style="background:#ff6b6b"></span> Inflation Rate (CPI)
+      </button>
+      <button class="toggle-btn" id="tog-mrt" onclick="toggleSeries(2)">
+        <span class="dot" style="background:#6bcb77"></span> 30-Year Mortgage Rate
+      </button>
+    </div>
+
     <canvas id="chart"></canvas>
   </div>
 
-  <div class="sources">
-    <strong>Data Sources</strong><br />
-    <a href="https://fred.stlouisfed.org/series/CPIAUCSL" target="_blank" rel="noopener">CPI Inflation &mdash; FRED: CPIAUCSL</a>
-    &nbsp;(BLS CPI All Urban Consumers, seasonally adj., monthly from Jan 1947. Annual YoY = year-avg level change.)<br />
-    <a href="https://fred.stlouisfed.org/series/MORTGAGE30US" target="_blank" rel="noopener">30-Year Mortgage Rate &mdash; FRED: MORTGAGE30US</a>
-    &nbsp;(Freddie Mac PMMS, weekly from Apr 1971. Annual average shown.)<br />
-    <a href="https://fred.stlouisfed.org/series/USSTHPI" target="_blank" rel="noopener">House Price Index &mdash; FRED: USSTHPI</a>
-    &nbsp;(FHFA Purchase-Only HPI, seasonally adj., quarterly from Q1 1975. Annual YoY = year-avg level change.)<br />
-    Fetched via <a href="https://fred.stlouisfed.org/docs/api/fred/" target="_blank" rel="noopener">FRED API</a>
-    using <code>fetch_fred_data.py</code> and cached in <code>fred_data.json</code>.
+  <div class="footer">
+    <a href="https://fred.stlouisfed.org/series/USSTHPI" target="_blank" rel="noopener">FHFA House Price Index</a>
+    <span class="footer-sep">·</span>
+    <a href="https://fred.stlouisfed.org/series/CPIAUCSL" target="_blank" rel="noopener">BLS Consumer Price Index</a>
+    <span class="footer-sep">·</span>
+    <a href="https://fred.stlouisfed.org/series/MORTGAGE30US" target="_blank" rel="noopener">Freddie Mac Mortgage Survey</a>
+    <span class="footer-sep">·</span>
+    <span>Source: Federal Reserve Bank of St. Louis (FRED)</span>
   </div>
 
 <script>
-  let rangeStart = 1947, rangeEnd = new Date().getFullYear();
+  let rangeStart, rangeEnd, dataMin, dataMax;
   let store = { cpi: [], mortgage: [], hpi: [] };
   let chart = null;
+  const hiddenSeries = new Set();
 
   window.addEventListener('DOMContentLoaded', async () => {
     try {
       const res = await fetch('fred_data.json');
-      if (!res.ok) throw new Error('not found');
+      if (!res.ok) throw new Error();
       const data = await res.json();
       store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi };
-      document.getElementById('fetchedOn').textContent = data.fetched_at || 'unknown';
-      document.getElementById('dataBanner').style.display = 'block';
-      document.getElementById('sliderPanel').style.display = 'block';
-      document.getElementById('status').textContent = '';
+
+      // Update header
+      if (data.fetched_at) {
+        document.getElementById('fetchedOn').textContent = data.fetched_at;
+        document.getElementById('updatedTag').style.display = '';
+      }
+
+      // Populate stat cards with most recent values
+      populateCards();
+
+      // Show UI
+      document.getElementById('loadingWrap').style.display = 'none';
+      document.getElementById('cards').style.display = 'grid';
+      document.getElementById('chartPanel').style.display = 'block';
+
       initSlider();
       buildChart();
     } catch {
-      document.getElementById('noDataBanner').style.display = 'block';
-      setStatus('Run python3 fetch_fred_data.py to generate fred_data.json, then reload.', 'error');
+      document.getElementById('loadingWrap').style.display = 'none';
+      document.getElementById('errorMsg').style.display = 'block';
     }
   });
 
+  function last(arr) { return arr[arr.length - 1]; }
+
+  function populateCards() {
+    const h = last(store.hpi);
+    const c = last(store.cpi);
+    const m = last(store.mortgage);
+    document.getElementById('hpiVal').textContent = (h.value > 0 ? '+' : '') + h.value.toFixed(1) + '%';
+    document.getElementById('hpiYear').textContent = h.year;
+    document.getElementById('cpiVal').textContent = (c.value > 0 ? '+' : '') + c.value.toFixed(1) + '%';
+    document.getElementById('cpiYear').textContent = c.year;
+    document.getElementById('mrtVal').textContent = m.value.toFixed(2) + '%';
+    document.getElementById('mrtYear').textContent = m.year;
+  }
+
   function initSlider() {
     const allYears = [...store.cpi, ...store.mortgage, ...store.hpi].map(d => d.year);
-    const dMin = Math.min(...allYears), dMax = Math.max(...allYears);
-    rangeStart = dMin; rangeEnd = dMax;
+    dataMin = Math.min(...allYears);
+    dataMax = Math.max(...allYears);
+    rangeStart = dataMin; rangeEnd = dataMax;
+
     const el = document.getElementById('yearSlider');
     noUiSlider.create(el, {
-      start: [dMin, dMax], connect: true, step: 1,
-      range: { min: dMin, max: dMax },
+      start: [dataMin, dataMax], connect: true, step: 1,
+      range: { min: dataMin, max: dataMax },
       tooltips: [{ to: v => Math.round(v).toString() }, { to: v => Math.round(v).toString() }],
       format: { to: v => Math.round(v), from: Number },
     });
     el.noUiSlider.on('update', (vals) => {
       rangeStart = +vals[0]; rangeEnd = +vals[1];
-      document.getElementById('rangeDisplay').textContent = rangeStart + ' \u2013 ' + rangeEnd;
+      document.getElementById('rangeDisplay').textContent = rangeStart + '\u2013' + rangeEnd;
+      syncPresetButtons();
       if (chart) refreshChart();
     });
-    document.getElementById('rangeDisplay').textContent = dMin + ' \u2013 ' + dMax;
+    document.getElementById('rangeDisplay').textContent = dataMin + '\u2013' + dataMax;
+    syncPresetButtons();
+  }
+
+  function setPreset(years) {
+    const slider = document.getElementById('yearSlider').noUiSlider;
+    const start = years === 0 ? dataMin : Math.max(dataMin, dataMax - years);
+    slider.set([start, dataMax]);
+  }
+
+  function syncPresetButtons() {
+    const span = dataMax - rangeStart;
+    const btns = document.querySelectorAll('#presetGroup .preset-btn');
+    const presets = [10, 20, 30, 50, 0];
+    btns.forEach((btn, i) => {
+      const p = presets[i];
+      const match = p === 0
+        ? rangeStart === dataMin
+        : span === p && rangeStart === dataMax - p;
+      btn.classList.toggle('active', match);
+    });
+  }
+
+  function toggleSeries(idx) {
+    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt'];
+    const btn = document.getElementById(ids[idx]);
+    if (hiddenSeries.has(idx)) {
+      hiddenSeries.delete(idx);
+      btn.classList.remove('hidden-series');
+    } else {
+      hiddenSeries.add(idx);
+      btn.classList.add('hidden-series');
+    }
+    if (chart) refreshChart();
   }
 
   function aligned(series, years) {
@@ -159,25 +466,38 @@
       data: { labels: [], datasets: [] },
       options: {
         responsive: true,
+        animation: { duration: 300 },
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: {
-            position: 'top',
-            labels: { color: '#ccc', font: { size: 12 }, padding: 24, usePointStyle: true, pointStyleWidth: 20,
-              filter: item => item.text !== '_zero' },
-          },
+          legend: { display: false },
           tooltip: {
-            backgroundColor: '#1e2130', titleColor: '#fff', bodyColor: '#ccc',
-            borderColor: '#2e3142', borderWidth: 1, padding: 14,
+            backgroundColor: '#1a1e2e',
+            titleColor: '#e4e6f0',
+            bodyColor: '#9ba0be',
+            borderColor: '#252a3a',
+            borderWidth: 1,
+            padding: 14,
+            cornerRadius: 10,
             filter: item => item.dataset.label !== '_zero',
-            callbacks: { label: c => c.parsed.y !== null ? ' ' + c.dataset.label + ': ' + c.parsed.y.toFixed(2) + '%' : ' ' + c.dataset.label + ': N/A' },
+            callbacks: {
+              title: items => items[0]?.label + ' (Annual)',
+              label: c => c.parsed.y !== null
+                ? '  ' + c.dataset.label + ':  ' + (c.dataset.label.includes('Mortgage') ? '' : c.parsed.y > 0 ? '+' : '') + c.parsed.y.toFixed(2) + '%'
+                : '  ' + c.dataset.label + ':  N/A',
+            },
           },
         },
         scales: {
-          x: { ticks: { color: '#666', maxTicksLimit: 20, font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { ticks: { color: '#666', font: { size: 11 }, callback: v => v + '%' },
-               grid: { color: 'rgba(255,255,255,0.06)' },
-               title: { display: true, text: 'Percent (%)', color: '#555', font: { size: 11 } } },
+          x: {
+            ticks: { color: '#4a5070', maxTicksLimit: 15, font: { size: 11 } },
+            grid:  { color: 'rgba(255,255,255,0.03)' },
+            border: { color: 'rgba(255,255,255,0.05)' },
+          },
+          y: {
+            ticks: { color: '#4a5070', font: { size: 11 }, callback: v => v + '%' },
+            grid:  { color: 'rgba(255,255,255,0.04)' },
+            border: { color: 'rgba(255,255,255,0.05)' },
+          },
         },
       },
     });
@@ -187,28 +507,28 @@
   function refreshChart() {
     if (!chart) return;
     const years = Array.from({ length: rangeEnd - rangeStart + 1 }, (_, i) => rangeStart + i);
+    const ds = [
+      { label: 'House Price Index YoY',  data: aligned(store.hpi, years),      borderColor: '#4fc3f7', backgroundColor: 'rgba(79,195,247,0.06)'  },
+      { label: 'Inflation Rate (CPI)',    data: aligned(store.cpi, years),      borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.06)' },
+      { label: 'Mortgage Rate (30-Year)', data: aligned(store.mortgage, years), borderColor: '#6bcb77', backgroundColor: 'rgba(107,203,119,0.06)' },
+    ];
     chart.data.labels = years;
     chart.data.datasets = [
-      { label: 'House Price Index YoY (%)', data: aligned(store.hpi, years),
-        borderColor: '#4fc3f7', backgroundColor: 'rgba(79,195,247,0.07)',
-        borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, spanGaps: false },
-      { label: 'Inflation Rate \u2014 CPI YoY (%)', data: aligned(store.cpi, years),
-        borderColor: '#ef5350', backgroundColor: 'rgba(239,83,80,0.07)',
-        borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, spanGaps: false },
-      { label: '30-Year Mortgage Rate (%)', data: aligned(store.mortgage, years),
-        borderColor: '#66bb6a', backgroundColor: 'rgba(102,187,106,0.07)',
-        borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, spanGaps: false },
+      ...ds.map((d, i) => ({
+        ...d,
+        hidden: hiddenSeries.has(i),
+        borderWidth: 2.5,
+        pointRadius: years.length < 30 ? 3 : 2,
+        pointHoverRadius: 7,
+        tension: 0.3,
+        fill: false,
+        spanGaps: false,
+      })),
       { label: '_zero', data: years.map(() => 0),
-        borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderDash: [4,4],
+        borderColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderDash: [5,5],
         pointRadius: 0, tension: 0, fill: false, spanGaps: true },
     ];
     chart.update();
-  }
-
-  function setStatus(msg, type) {
-    const el = document.getElementById('status');
-    el.textContent = msg;
-    el.className = 'status' + (type ? ' ' + type : '');
   }
 </script>
 </body>
