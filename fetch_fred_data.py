@@ -49,12 +49,18 @@ def fred_fetch_monthly(series_id, start_year):
     ]
 
 def yoy_monthly(levels):
-    """YoY: compare each month to the same month 12 months prior."""
-    return [
-        {'date':  levels[i]['date'],
-         'value': round((levels[i]['value'] / levels[i-12]['value'] - 1) * 100, 3)}
-        for i in range(12, len(levels))
-    ]
+    """YoY: compare each month to the same month 12 months prior, matched by date string."""
+    lookup = {d['date']: d['value'] for d in levels}
+    result = []
+    for obs in levels:
+        y, m = obs['date'].split('-')
+        prior = f'{int(y)-1}-{m}'
+        if prior in lookup and lookup[prior] != 0:
+            result.append({
+                'date':  obs['date'],
+                'value': round((obs['value'] / lookup[prior] - 1) * 100, 3)
+            })
+    return result
 
 print('Fetching data from FRED...')
 output = {'fetched_at': datetime.now().strftime('%B %d, %Y')}
