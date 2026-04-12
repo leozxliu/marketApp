@@ -360,6 +360,7 @@
   let store = { cpi: [], mortgage: [], hpi: [] };
   let chart = null;
   const hiddenSeries = new Set();
+  let _panActive = false;
 
   // ---- Crosshair plugin ----
   const crosshairPlugin = {
@@ -459,7 +460,7 @@
       rangeStart = +vals[0]; rangeEnd = +vals[1];
       document.getElementById('rangeDisplay').textContent = rangeStart + '\u2013' + rangeEnd;
       syncPresetButtons();
-      if (chart) refreshChart();
+      if (chart && !_panActive) refreshChart();
     });
     document.getElementById('rangeDisplay').textContent = dataMin + '\u2013' + dataMax;
     syncPresetButtons();
@@ -575,7 +576,7 @@
     refreshChart();
   }
 
-  function refreshChart() {
+  function refreshChart(noAnim) {
     if (!chart) return;
     const hpiFilt = filteredSeries(store.hpi);
     const cpiFilt = filteredSeries(store.cpi);
@@ -627,7 +628,7 @@
         pointRadius: 0, tension: 0, fill: false, spanGaps: true,
       },
     ];
-    chart.update();
+    chart.update(noAnim ? 'none' : undefined);
   }
 
   function attachCanvasEvents() {
@@ -641,6 +642,22 @@
       const mx = e.clientX - rect.left;
       const { left, right } = chart.chartArea;
       if (mx < left || mx > right) return;
+
+      // Lock y-axis to current visible range so it doesn't jitter during pan
+      const allVis = [
+        ...filteredSeries(store.hpi).map(d => d.value),
+        ...filteredSeries(store.cpi).map(d => d.value),
+        ...filteredSeries(store.mortgage).map(d => d.value),
+      ].filter(v => v != null);
+      if (allVis.length) {
+        const yMin = Math.min(...allVis);
+        const yMax = Math.max(...allVis);
+        const pad = (yMax - yMin) * 0.12;
+        chart.options.scales.y.min = Math.floor(yMin - pad);
+        chart.options.scales.y.max = Math.ceil(yMax + pad);
+      }
+
+      _panActive = true;
       pan = { startX: e.clientX, rs: rangeStart, re: rangeEnd };
       canvas.style.cursor = 'grabbing';
       e.preventDefault();
@@ -652,12 +669,26 @@
       const w = chart.chartArea.right - chart.chartArea.left;
       const span = pan.re - pan.rs;
       const delta = Math.round((dx / w) * span);
-      if (!delta) return;
       const ns = Math.max(dataMin, Math.min(dataMax - span, pan.rs - delta));
-      document.getElementById('yearSlider').noUiSlider.set([ns, ns + span]);
+      const ne = ns + span;
+      if (ns === rangeStart) return;
+      rangeStart = ns; rangeEnd = ne;
+      document.getElementById('rangeDisplay').textContent = rangeStart + '\u2013' + rangeEnd;
+      syncPresetButtons();
+      refreshChart(true); // instant update, no animation
     });
 
-    const endPan = () => { if (pan) { pan = null; canvas.style.cursor = 'grab'; } };
+    const endPan = () => {
+      if (!pan) return;
+      pan = null;
+      _panActive = false;
+      canvas.style.cursor = 'grab';
+      // Release y-axis lock
+      chart.options.scales.y.min = undefined;
+      chart.options.scales.y.max = undefined;
+      // Sync slider to final position (triggers display update only)
+      document.getElementById('yearSlider').noUiSlider.set([rangeStart, rangeEnd]);
+    };
     window.addEventListener('mouseup', endPan);
     window.addEventListener('mouseleave', endPan);
   }
