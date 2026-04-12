@@ -511,8 +511,10 @@
                   ? parseInt(allLabels[allLabels.length - 1]) - parseInt(allLabels[0])
                   : 0;
                 if (spanYears > 8) {
-                  // One label per year, shown on January
-                  return month === '01' ? year : null;
+                  // One label per year on January, with optional skipping
+                  if (month !== '01') return null;
+                  const step = spanYears >= 50 ? 3 : spanYears >= 30 ? 2 : 1;
+                  return parseInt(year) % step === 0 ? year : null;
                 } else {
                   // Quarterly labels for zoomed-in views
                   return parseInt(month) % 3 === 1 ? MONTH_NAMES[parseInt(month) - 1] + ' ' + year : null;
