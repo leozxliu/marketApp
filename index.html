@@ -85,26 +85,24 @@
     }
     .updated-tag span { color: var(--text); }
 
-    /* ── Stat cards ── */
+    /* ── Stat cards (inside chart panel) ── */
     .cards {
-      width: 100%;
-      max-width: 1020px;
-      box-sizing: border-box;
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 14px;
+      gap: 10px;
+      margin-bottom: 18px;
     }
     @media (max-width: 800px) { .cards { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 480px) { .cards { grid-template-columns: 1fr; } }
 
     .card {
-      background: var(--surface);
+      background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px 20px;
+      border-radius: 10px;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 3px;
       position: relative;
       overflow: hidden;
       cursor: default;
@@ -114,8 +112,8 @@
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0;
-      height: 3px;
-      border-radius: 14px 14px 0 0;
+      height: 2px;
+      border-radius: 10px 10px 0 0;
     }
     .card.hpi::before { background: var(--hpi); }
     .card.cpi::before { background: var(--cpi); }
@@ -123,14 +121,14 @@
     .card.ndq::before { background: var(--ndq); }
     .card:hover { border-color: #353c55; }
 
-    .card-label { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
-    .card-value { font-size: 2rem; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+    .card-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
+    .card-value { font-size: 1.55rem; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
     .card.hpi .card-value { color: var(--hpi); }
     .card.cpi .card-value { color: var(--cpi); }
     .card.mrt .card-value { color: var(--mrt); }
     .card.ndq .card-value { color: var(--ndq); }
-    .card-sub { font-size: 0.78rem; color: var(--muted); }
-    .card-year { font-size: 0.72rem; color: #3d4460; position: absolute; top: 14px; right: 16px; }
+    .card-sub { font-size: 0.7rem; color: var(--muted); }
+    .card-year { font-size: 0.68rem; color: #3d4460; position: absolute; top: 10px; right: 12px; }
 
     /* ── Chart panel ── */
     .chart-panel {
@@ -291,37 +289,36 @@
     <p class="load-text">Loading data…</p>
   </div>
 
-  <!-- Stat cards -->
-  <div class="cards" id="cards" style="display:none">
-    <div class="card hpi">
-      <span class="card-year" id="hpiYear"></span>
-      <div class="card-label">House Price Index</div>
-      <div class="card-value" id="hpiVal">—</div>
-      <div class="card-sub">Year-over-year change</div>
-    </div>
-    <div class="card cpi">
-      <span class="card-year" id="cpiYear"></span>
-      <div class="card-label">Inflation Rate (CPI)</div>
-      <div class="card-value" id="cpiVal">—</div>
-      <div class="card-sub">Year-over-year change</div>
-    </div>
-    <div class="card mrt">
-      <span class="card-year" id="mrtYear"></span>
-      <div class="card-label">30-Year Mortgage Rate</div>
-      <div class="card-value" id="mrtVal">—</div>
-      <div class="card-sub">Monthly average</div>
-    </div>
-    <div class="card ndq">
-      <span class="card-year" id="ndqYear"></span>
-      <div class="card-label">NASDAQ Composite</div>
-      <div class="card-value" id="ndqVal">—</div>
-      <div class="card-sub">Year-over-year change</div>
-    </div>
-    <div class="card ndq">
-  </div>
-
-  <!-- Chart panel -->
+  <!-- Chart panel (includes stat cards) -->
   <div class="chart-panel" id="chartPanel" style="display:none">
+
+    <!-- Stat cards -->
+    <div class="cards" id="cards">
+      <div class="card hpi">
+        <span class="card-year" id="hpiYear"></span>
+        <div class="card-label">House Price Index</div>
+        <div class="card-value" id="hpiVal">—</div>
+        <div class="card-sub">Trailing YoY</div>
+      </div>
+      <div class="card cpi">
+        <span class="card-year" id="cpiYear"></span>
+        <div class="card-label">Inflation Rate (CPI)</div>
+        <div class="card-value" id="cpiVal">—</div>
+        <div class="card-sub">Trailing YoY</div>
+      </div>
+      <div class="card mrt">
+        <span class="card-year" id="mrtYear"></span>
+        <div class="card-label">30-Yr Mortgage Rate</div>
+        <div class="card-value" id="mrtVal">—</div>
+        <div class="card-sub">Monthly average</div>
+      </div>
+      <div class="card ndq">
+        <span class="card-year" id="ndqYear"></span>
+        <div class="card-label">NASDAQ Composite</div>
+        <div class="card-value" id="ndqVal">—</div>
+        <div class="card-sub">Trailing YoY</div>
+      </div>
+    </div>
     <div class="controls">
       <div class="preset-group" id="presetGroup">
         <button class="preset-btn" onclick="setPreset(10)">10Y</button>
@@ -436,7 +433,6 @@
 
       populateCards();
       document.getElementById('loadingWrap').style.display = 'none';
-      document.getElementById('cards').style.display = 'grid';
       document.getElementById('chartPanel').style.display = 'block';
       initSlider();
       buildChart();
@@ -532,6 +528,8 @@
       data: { labels: [], datasets: [] },
       options: {
         responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.9,
         animation: { duration: 200 },
         interaction: { mode: 'index', intersect: false },
         plugins: {
