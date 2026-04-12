@@ -24,7 +24,7 @@ SERIES = {
     'cpi':      {'id': 'CPIAUCSL',     'start': 1946, 'yoy': True},
     'mortgage': {'id': 'MORTGAGE30US', 'start': 1971, 'yoy': False},
     'hpi':      {'id': 'CSUSHPISA',    'start': 1986, 'yoy': True},  # S&P/Case-Shiller, monthly from Jan 1987
-    'nasdaq':   {'id': 'NASDAQCOM',   'start': 1970, 'yoy': True},  # NASDAQ Composite (from 1971)
+    'nasdaq':   {'id': 'NASDAQCOM',   'start': 1970, 'yoy': False, 'jan_yoy': True},  # NASDAQ Composite (from 1971)
 }
 
 def fred_fetch_monthly(series_id, start_year):
@@ -62,13 +62,32 @@ def yoy_monthly(levels):
             })
     return result
 
+def yoy_january(levels):
+    """YoY: (end/start - 1)*100, labeled at the START of each 12-month window."""
+    lookup = {d['date']: d['value'] for d in levels}
+    result = []
+    for obs in levels:
+        y, m = obs['date'].split('-')
+        next_date = f'{int(y)+1}-{m}'
+        if next_date in lookup and obs['value'] != 0:
+            result.append({
+                'date':  obs['date'],          # label = start of window
+                'value': round((lookup[next_date] / obs['value'] - 1) * 100, 3)
+            })
+    return result
+
 print('Fetching data from FRED...')
 output = {'fetched_at': datetime.now().strftime('%B %d, %Y')}
 
 for key, cfg in SERIES.items():
     print(f'  {key.upper()} ({cfg["id"]})...', end=' ', flush=True)
     raw = fred_fetch_monthly(cfg['id'], cfg['start'])
-    output[key] = yoy_monthly(raw) if cfg['yoy'] else raw
+    if cfg.get('jan_yoy'):
+        output[key] = yoy_january(raw)
+    elif cfg['yoy']:
+        output[key] = yoy_monthly(raw)
+    else:
+        output[key] = raw
     print(f'{output[key][0]["date"]}\u2013{output[key][-1]["date"]}  ({len(output[key])} records)')
 
 with open('fred_data.json', 'w') as f:
