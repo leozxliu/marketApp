@@ -21,6 +21,7 @@
       --hpi:       #4fc3f7;
       --cpi:       #ff6b6b;
       --mrt:       #6bcb77;
+      --ndq:       #ffd166;
     }
 
     body {
@@ -117,6 +118,7 @@
     .card.hpi::before { background: var(--hpi); }
     .card.cpi::before { background: var(--cpi); }
     .card.mrt::before { background: var(--mrt); }
+    .card.ndq::before { background: var(--ndq); }
     .card:hover { border-color: #353c55; }
 
     .card-label { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
@@ -124,6 +126,7 @@
     .card.hpi .card-value { color: var(--hpi); }
     .card.cpi .card-value { color: var(--cpi); }
     .card.mrt .card-value { color: var(--mrt); }
+    .card.ndq .card-value { color: var(--ndq); }
     .card-sub { font-size: 0.78rem; color: var(--muted); }
     .card-year { font-size: 0.72rem; color: #3d4460; position: absolute; top: 14px; right: 16px; }
 
@@ -305,6 +308,12 @@
       <div class="card-value" id="mrtVal">—</div>
       <div class="card-sub">Monthly average</div>
     </div>
+    <div class="card ndq">
+      <span class="card-year" id="ndqYear"></span>
+      <div class="card-label">NASDAQ 1-Yr Forward</div>
+      <div class="card-value" id="ndqVal">—</div>
+      <div class="card-sub">Current entry return</div>
+    </div>
   </div>
 
   <!-- Chart panel -->
@@ -440,12 +449,15 @@
     const h = last(store.hpi);
     const c = last(store.cpi);
     const m = last(store.mortgage);
+    const n = last(store.nasdaq);
     document.getElementById('hpiVal').textContent = (h.value > 0 ? '+' : '') + h.value.toFixed(1) + '%';
     document.getElementById('hpiYear').textContent = fmtDate(h.date);
     document.getElementById('cpiVal').textContent = (c.value > 0 ? '+' : '') + c.value.toFixed(1) + '%';
     document.getElementById('cpiYear').textContent = fmtDate(c.date);
     document.getElementById('mrtVal').textContent = m.value.toFixed(2) + '%';
     document.getElementById('mrtYear').textContent = fmtDate(m.date);
+    document.getElementById('ndqVal').textContent = (n.value > 0 ? '+' : '') + n.value.toFixed(1) + '%';
+    document.getElementById('ndqYear').textContent = fmtDate(n.date);
   }
 
   function initSlider() {
