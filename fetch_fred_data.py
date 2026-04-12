@@ -24,6 +24,7 @@ SERIES = {
     'cpi':      {'id': 'CPIAUCSL',     'start': 1946, 'yoy': True},
     'mortgage': {'id': 'MORTGAGE30US', 'start': 1971, 'yoy': False},
     'hpi':      {'id': 'CSUSHPISA',    'start': 1986, 'yoy': True},  # S&P/Case-Shiller, monthly from Jan 1987
+    'sp500':    {'id': 'NASDAQCOM',   'start': 1970, 'yoy': True},  # NASDAQ Composite (from 1971)
 }
 
 def fred_fetch_monthly(series_id, start_year):
@@ -71,3 +72,4 @@ print('\nSaved fred_data.json')
 print(f'  CPI:      {output["cpi"][0]["date"]}\u2013{output["cpi"][-1]["date"]}')
 print(f'  Mortgage: {output["mortgage"][0]["date"]}\u2013{output["mortgage"][-1]["date"]}')
 print(f'  HPI:      {output["hpi"][0]["date"]}\u2013{output["hpi"][-1]["date"]}')
+print(f'  SP500:    {output["sp500"][0]["date"]}\u2013{output["sp500"][-1]["date"]}')

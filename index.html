@@ -334,6 +334,9 @@
       <button class="toggle-btn" id="tog-mrt" onclick="toggleSeries(2)">
         <span class="dot" style="background:#6bcb77"></span> 30-Year Mortgage Rate
       </button>
+      <button class="toggle-btn" id="tog-sp5" onclick="toggleSeries(3)">
+        <span class="dot" style="background:#ffd166"></span> NASDAQ Composite YoY
+      </button>
     </div>
 
     <canvas id="chart"></canvas>
@@ -346,6 +349,8 @@
     <span class="footer-sep">·</span>
     <a href="https://fred.stlouisfed.org/series/MORTGAGE30US" target="_blank" rel="noopener">Freddie Mac Mortgage Survey</a>
     <span class="footer-sep">·</span>
+    <a href="https://fred.stlouisfed.org/series/NASDAQCOM" target="_blank" rel="noopener">NASDAQ Composite</a>
+    <span class="footer-sep">·</span>
     <span>Source: Federal Reserve Bank of St. Louis (FRED)</span>
   </div>
   <div class="footer" style="margin-top:4px; color:#2e3350;">
@@ -357,7 +362,7 @@
 
 <script>
   let rangeStart, rangeEnd, dataMin, dataMax;
-  let store = { cpi: [], mortgage: [], hpi: [] };
+  let store = { cpi: [], mortgage: [], hpi: [], sp500: [] };
   let chart = null;
   const hiddenSeries = new Set();
   let _panActive = false;
@@ -409,7 +414,7 @@
       const res = await fetch('fred_data.json');
       if (!res.ok) throw new Error();
       const data = await res.json();
-      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi };
+      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, sp500: data.sp500 || [] };
 
       if (data.fetched_at) {
         document.getElementById('fetchedOn').textContent = data.fetched_at;
@@ -491,7 +496,7 @@
   }
 
   function toggleSeries(idx) {
-    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt'];
+    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt', 'tog-sp5'];
     const btn = document.getElementById(ids[idx]);
     if (hiddenSeries.has(idx)) {
       hiddenSeries.delete(idx);
@@ -581,17 +586,20 @@
     const hpiFilt = filteredSeries(store.hpi);
     const cpiFilt = filteredSeries(store.cpi);
     const mrtFilt = filteredSeries(store.mortgage);
+    const sp5Filt = filteredSeries(store.sp500);
 
     // Union of all dates in range, sorted
     const dates = [...new Set([
       ...hpiFilt.map(d => d.date),
       ...cpiFilt.map(d => d.date),
       ...mrtFilt.map(d => d.date),
+      ...sp5Filt.map(d => d.date),
     ])].sort();
 
     const hpiMap = new Map(hpiFilt.map(d => [d.date, +d.value.toFixed(2)]));
     const cpiMap = new Map(cpiFilt.map(d => [d.date, +d.value.toFixed(2)]));
     const mrtMap = new Map(mrtFilt.map(d => [d.date, +d.value.toFixed(2)]));
+    const sp5Map = new Map(sp5Filt.map(d => [d.date, +d.value.toFixed(2)]));
 
     chart.data.labels = dates;
     // During pan, suppress crosshair
@@ -622,6 +630,14 @@
         tension: 0.2, fill: false, spanGaps: false,
       },
       {
+        label: 'NASDAQ Composite YoY',
+        data: dates.map(d => sp5Map.get(d) ?? null),
+        hidden: hiddenSeries.has(3),
+        borderColor: '#ffd166', backgroundColor: 'rgba(255,209,102,0.06)',
+        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 5,
+        tension: 0.2, fill: false, spanGaps: false,
+      },
+      {
         label: '_zero',
         data: dates.map(() => 0),
         borderColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderDash: [5,5],
@@ -648,6 +664,7 @@
         ...filteredSeries(store.hpi).map(d => d.value),
         ...filteredSeries(store.cpi).map(d => d.value),
         ...filteredSeries(store.mortgage).map(d => d.value),
+        ...filteredSeries(store.sp500).map(d => d.value),
       ].filter(v => v != null);
       if (allVis.length) {
         const yMin = Math.min(...allVis);
