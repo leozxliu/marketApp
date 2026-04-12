@@ -661,11 +661,13 @@
       if (mx < left || mx > right) return;
       e.preventDefault();
 
-      const delta = Math.max(1, Math.round((rangeEnd - rangeStart) * 0.15));  // always ≥1 yr per tick
+      const f = (mx - left) / (right - left);           // cursor fraction across chart
       const span = rangeEnd - rangeStart;
+      const pivot = rangeStart + f * span;               // year under cursor — stays fixed
+      const delta = Math.max(1, Math.round(span * 0.15)); // ≥1 yr per tick
       const newSpan = e.deltaY > 0
-        ? Math.min(dataMax - dataMin, span + delta)   // scroll down = zoom out
-        : Math.max(1, span - delta);                  // scroll up   = zoom in
+        ? Math.min(dataMax - dataMin, span + delta)      // scroll down = zoom out
+        : Math.max(1, span - delta);                     // scroll up   = zoom in
       const ns = Math.max(dataMin, Math.min(dataMax - newSpan, Math.round(pivot - f * newSpan)));
       rangeStart = ns;
       rangeEnd = ns + newSpan;
