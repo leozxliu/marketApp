@@ -23,15 +23,15 @@ if not API_KEY:
 SERIES = {
     'cpi':      {'id': 'CPIAUCSL',     'start': 1946, 'yoy': True},
     'mortgage': {'id': 'MORTGAGE30US', 'start': 1971, 'yoy': False},
-    'hpi':      {'id': 'USSTHPI',      'start': 1974, 'yoy': True},
+    'hpi':      {'id': 'CSUSHPISA',    'start': 1986, 'yoy': True},  # S&P/Case-Shiller, monthly from Jan 1987
 }
 
-def fred_fetch_annual(series_id, start_year):
+def fred_fetch_monthly(series_id, start_year):
     params = urlencode({
         'series_id':          series_id,
         'api_key':            API_KEY,
         'file_type':          'json',
-        'frequency':          'a',
+        'frequency':          'm',
         'aggregation_method': 'avg',
         'observation_start':  f'{start_year}-01-01',
         'sort_order':         'asc',
@@ -42,16 +42,17 @@ def fred_fetch_annual(series_id, start_year):
     if 'error_message' in data:
         raise RuntimeError(f"FRED error for {series_id}: {data['error_message']}")
     return [
-        {'year': int(obs['date'][:4]), 'value': float(obs['value'])}
+        {'date': obs['date'][:7], 'value': float(obs['value'])}  # 'YYYY-MM'
         for obs in data['observations']
         if obs['value'] != '.'
     ]
 
-def yoy(levels):
+def yoy_monthly(levels):
+    """YoY: compare each month to the same month 12 months prior."""
     return [
-        {'year': levels[i]['year'],
-         'value': round((levels[i]['value'] / levels[i-1]['value'] - 1) * 100, 3)}
-        for i in range(1, len(levels))
+        {'date':  levels[i]['date'],
+         'value': round((levels[i]['value'] / levels[i-12]['value'] - 1) * 100, 3)}
+        for i in range(12, len(levels))
     ]
 
 print('Fetching data from FRED...')
@@ -59,14 +60,14 @@ output = {'fetched_at': datetime.now().strftime('%B %d, %Y')}
 
 for key, cfg in SERIES.items():
     print(f'  {key.upper()} ({cfg["id"]})...', end=' ', flush=True)
-    raw = fred_fetch_annual(cfg['id'], cfg['start'])
-    output[key] = yoy(raw) if cfg['yoy'] else raw
-    print(f'{output[key][0]["year"]}–{output[key][-1]["year"]}  ({len(output[key])} records)')
+    raw = fred_fetch_monthly(cfg['id'], cfg['start'])
+    output[key] = yoy_monthly(raw) if cfg['yoy'] else raw
+    print(f'{output[key][0]["date"]}\u2013{output[key][-1]["date"]}  ({len(output[key])} records)')
 
 with open('fred_data.json', 'w') as f:
     json.dump(output, f)
 
 print('\nSaved fred_data.json')
-print(f'  CPI:      {output["cpi"][0]["year"]}–{output["cpi"][-1]["year"]}')
-print(f'  Mortgage: {output["mortgage"][0]["year"]}–{output["mortgage"][-1]["year"]}')
-print(f'  HPI:      {output["hpi"][0]["year"]}–{output["hpi"][-1]["year"]}')
+print(f'  CPI:      {output["cpi"][0]["date"]}\u2013{output["cpi"][-1]["date"]}')
+print(f'  Mortgage: {output["mortgage"][0]["date"]}\u2013{output["mortgage"][-1]["date"]}')
+print(f'  HPI:      {output["hpi"][0]["date"]}\u2013{output["hpi"][-1]["date"]}')

@@ -266,7 +266,7 @@
   <div class="header">
     <div class="header-top">
       <h1>US Housing &amp; Economic Indicators</h1>
-      <span class="badge">Annual Data</span>
+      <span class="badge">Monthly Data</span>
     </div>
     <div class="subtitle">
       House Price Index &nbsp;·&nbsp; Inflation Rate &nbsp;·&nbsp; 30-Year Mortgage Rate
@@ -303,7 +303,7 @@
       <span class="card-year" id="mrtYear"></span>
       <div class="card-label">30-Year Mortgage Rate</div>
       <div class="card-value" id="mrtVal">—</div>
-      <div class="card-sub">Annual average</div>
+      <div class="card-sub">Monthly average</div>
     </div>
   </div>
 
@@ -340,7 +340,7 @@
   </div>
 
   <div class="footer">
-    <a href="https://fred.stlouisfed.org/series/USSTHPI" target="_blank" rel="noopener">FHFA House Price Index</a>
+    <a href="https://fred.stlouisfed.org/series/CSUSHPISA" target="_blank" rel="noopener">S&amp;P/Case-Shiller HPI</a>
     <span class="footer-sep">·</span>
     <a href="https://fred.stlouisfed.org/series/CPIAUCSL" target="_blank" rel="noopener">BLS Consumer Price Index</a>
     <span class="footer-sep">·</span>
@@ -361,6 +361,13 @@
   let chart = null;
   const hiddenSeries = new Set();
 
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtDate(d) {
+    if (!d || !d.includes('-')) return d;
+    const [y, m] = d.split('-');
+    return MONTH_NAMES[parseInt(m) - 1] + ' ' + y;
+  }
+
   window.addEventListener('DOMContentLoaded', async () => {
     try {
       const res = await fetch('fred_data.json');
@@ -368,20 +375,15 @@
       const data = await res.json();
       store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi };
 
-      // Update header
       if (data.fetched_at) {
         document.getElementById('fetchedOn').textContent = data.fetched_at;
         document.getElementById('updatedTag').style.display = '';
       }
 
-      // Populate stat cards with most recent values
       populateCards();
-
-      // Show UI
       document.getElementById('loadingWrap').style.display = 'none';
       document.getElementById('cards').style.display = 'grid';
       document.getElementById('chartPanel').style.display = 'block';
-
       initSlider();
       buildChart();
     } catch {
@@ -397,15 +399,15 @@
     const c = last(store.cpi);
     const m = last(store.mortgage);
     document.getElementById('hpiVal').textContent = (h.value > 0 ? '+' : '') + h.value.toFixed(1) + '%';
-    document.getElementById('hpiYear').textContent = h.year;
+    document.getElementById('hpiYear').textContent = fmtDate(h.date);
     document.getElementById('cpiVal').textContent = (c.value > 0 ? '+' : '') + c.value.toFixed(1) + '%';
-    document.getElementById('cpiYear').textContent = c.year;
+    document.getElementById('cpiYear').textContent = fmtDate(c.date);
     document.getElementById('mrtVal').textContent = m.value.toFixed(2) + '%';
-    document.getElementById('mrtYear').textContent = m.year;
+    document.getElementById('mrtYear').textContent = fmtDate(m.date);
   }
 
   function initSlider() {
-    const allYears = [...store.cpi, ...store.mortgage, ...store.hpi].map(d => d.year);
+    const allYears = [...store.cpi, ...store.mortgage, ...store.hpi].map(d => parseInt(d.date));
     dataMin = Math.min(...allYears);
     dataMax = Math.max(...allYears);
     rangeStart = dataMin; rangeEnd = dataMax;
@@ -439,10 +441,15 @@
     const presets = [10, 20, 30, 50, 0];
     btns.forEach((btn, i) => {
       const p = presets[i];
-      const match = p === 0
-        ? rangeStart === dataMin
-        : span === p && rangeStart === dataMax - p;
+      const match = p === 0 ? rangeStart === dataMin : span === p && rangeStart === dataMax - p;
       btn.classList.toggle('active', match);
+    });
+  }
+
+  function filteredSeries(series) {
+    return series.filter(d => {
+      const y = parseInt(d.date);
+      return y >= rangeStart && y <= rangeEnd;
     });
   }
 
@@ -459,11 +466,6 @@
     if (chart) refreshChart();
   }
 
-  function aligned(series, years) {
-    const m = new Map(series.map(d => [d.year, d.value]));
-    return years.map(y => m.has(y) ? +m.get(y).toFixed(2) : null);
-  }
-
   function buildChart() {
     if (chart) { chart.destroy(); chart = null; }
     const ctx = document.getElementById('chart').getContext('2d');
@@ -472,7 +474,7 @@
       data: { labels: [], datasets: [] },
       options: {
         responsive: true,
-        animation: { duration: 300 },
+        animation: { duration: 200 },
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
@@ -486,7 +488,7 @@
             cornerRadius: 10,
             filter: item => item.dataset.label !== '_zero',
             callbacks: {
-              title: items => items[0]?.label + ' (Annual)',
+              title: items => fmtDate(items[0]?.label || ''),
               label: c => c.parsed.y !== null
                 ? '  ' + c.dataset.label + ':  ' + (c.dataset.label.includes('Mortgage') ? '' : c.parsed.y > 0 ? '+' : '') + c.parsed.y.toFixed(2) + '%'
                 : '  ' + c.dataset.label + ':  N/A',
@@ -495,13 +497,18 @@
         },
         scales: {
           x: {
-            ticks: { color: '#4a5070', maxTicksLimit: 15, font: { size: 11 } },
-            grid:  { color: 'rgba(255,255,255,0.03)' },
+            ticks: {
+              color: '#4a5070',
+              maxTicksLimit: 15,
+              font: { size: 11 },
+              callback: (val) => typeof val === 'string' && val.includes('-') ? val.split('-')[0] : val,
+            },
+            grid:   { color: 'rgba(255,255,255,0.03)' },
             border: { color: 'rgba(255,255,255,0.05)' },
           },
           y: {
             ticks: { color: '#4a5070', font: { size: 11 }, callback: v => v + '%' },
-            grid:  { color: 'rgba(255,255,255,0.04)' },
+            grid:   { color: 'rgba(255,255,255,0.04)' },
             border: { color: 'rgba(255,255,255,0.05)' },
           },
         },
@@ -512,27 +519,53 @@
 
   function refreshChart() {
     if (!chart) return;
-    const years = Array.from({ length: rangeEnd - rangeStart + 1 }, (_, i) => rangeStart + i);
-    const ds = [
-      { label: 'House Price Index YoY',  data: aligned(store.hpi, years),      borderColor: '#4fc3f7', backgroundColor: 'rgba(79,195,247,0.06)'  },
-      { label: 'Inflation Rate (CPI)',    data: aligned(store.cpi, years),      borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.06)' },
-      { label: 'Mortgage Rate (30-Year)', data: aligned(store.mortgage, years), borderColor: '#6bcb77', backgroundColor: 'rgba(107,203,119,0.06)' },
-    ];
-    chart.data.labels = years;
+    const hpiFilt = filteredSeries(store.hpi);
+    const cpiFilt = filteredSeries(store.cpi);
+    const mrtFilt = filteredSeries(store.mortgage);
+
+    // Union of all dates in range, sorted
+    const dates = [...new Set([
+      ...hpiFilt.map(d => d.date),
+      ...cpiFilt.map(d => d.date),
+      ...mrtFilt.map(d => d.date),
+    ])].sort();
+
+    const hpiMap = new Map(hpiFilt.map(d => [d.date, +d.value.toFixed(2)]));
+    const cpiMap = new Map(cpiFilt.map(d => [d.date, +d.value.toFixed(2)]));
+    const mrtMap = new Map(mrtFilt.map(d => [d.date, +d.value.toFixed(2)]));
+
+    chart.data.labels = dates;
     chart.data.datasets = [
-      ...ds.map((d, i) => ({
-        ...d,
-        hidden: hiddenSeries.has(i),
-        borderWidth: 2.5,
-        pointRadius: years.length < 30 ? 3 : 2,
-        pointHoverRadius: 7,
-        tension: 0.3,
-        fill: false,
-        spanGaps: false,
-      })),
-      { label: '_zero', data: years.map(() => 0),
+      {
+        label: 'House Price Index YoY',
+        data: dates.map(d => hpiMap.get(d) ?? null),
+        hidden: hiddenSeries.has(0),
+        borderColor: '#4fc3f7', backgroundColor: 'rgba(79,195,247,0.06)',
+        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 5,
+        tension: 0.2, fill: false, spanGaps: false,
+      },
+      {
+        label: 'Inflation Rate (CPI)',
+        data: dates.map(d => cpiMap.get(d) ?? null),
+        hidden: hiddenSeries.has(1),
+        borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.06)',
+        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 5,
+        tension: 0.2, fill: false, spanGaps: false,
+      },
+      {
+        label: 'Mortgage Rate (30-Year)',
+        data: dates.map(d => mrtMap.get(d) ?? null),
+        hidden: hiddenSeries.has(2),
+        borderColor: '#6bcb77', backgroundColor: 'rgba(107,203,119,0.06)',
+        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 5,
+        tension: 0.2, fill: false, spanGaps: false,
+      },
+      {
+        label: '_zero',
+        data: dates.map(() => 0),
         borderColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderDash: [5,5],
-        pointRadius: 0, tension: 0, fill: false, spanGaps: true },
+        pointRadius: 0, tension: 0, fill: false, spanGaps: true,
+      },
     ];
     chart.update();
   }
