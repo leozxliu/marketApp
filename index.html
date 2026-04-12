@@ -310,10 +310,11 @@
     </div>
     <div class="card ndq">
       <span class="card-year" id="ndqYear"></span>
-      <div class="card-label">NASDAQ 1-Yr Forward</div>
+      <div class="card-label">NASDAQ Composite</div>
       <div class="card-value" id="ndqVal">—</div>
-      <div class="card-sub">Current entry return</div>
+      <div class="card-sub">Year-over-year change</div>
     </div>
+    <div class="card ndq">
   </div>
 
   <!-- Chart panel -->
@@ -335,16 +336,16 @@
 
     <div class="legend-toggles" id="legendToggles">
       <button class="toggle-btn" id="tog-hpi" onclick="toggleSeries(0)">
-        <span class="dot" style="background:#4fc3f7"></span> House Price Index (1-Yr Forward)
+        <span class="dot" style="background:#4fc3f7"></span> House Price Index (Trailing YoY)
       </button>
       <button class="toggle-btn" id="tog-cpi" onclick="toggleSeries(1)">
-        <span class="dot" style="background:#ff6b6b"></span> Inflation Rate / CPI (1-Yr Forward)
+        <span class="dot" style="background:#ff6b6b"></span> Inflation Rate / CPI (Trailing YoY)
       </button>
       <button class="toggle-btn" id="tog-mrt" onclick="toggleSeries(2)">
         <span class="dot" style="background:#6bcb77"></span> 30-Year Mortgage Rate
       </button>
       <button class="toggle-btn" id="tog-sp5" onclick="toggleSeries(3)">
-        <span class="dot" style="background:#ffd166"></span> NASDAQ 1-Yr Forward Return
+        <span class="dot" style="background:#ffd166"></span> NASDAQ Composite (Trailing YoY)
       </button>
     </div>
 
@@ -618,7 +619,7 @@
     if (chart) chart._cx = null;
     chart.data.datasets = [
       {
-        label: 'House Price Index (1-Yr Forward)',
+        label: 'House Price Index (Trailing YoY)',
         data: dates.map(d => hpiMap.get(d) ?? null),
         hidden: hiddenSeries.has(0),
         borderColor: '#4fc3f7', backgroundColor: 'rgba(79,195,247,0.06)',
@@ -626,7 +627,7 @@
         tension: 0.2, fill: false, spanGaps: false,
       },
       {
-        label: 'Inflation Rate / CPI (1-Yr Forward)',
+        label: 'Inflation Rate / CPI (Trailing YoY)',
         data: dates.map(d => cpiMap.get(d) ?? null),
         hidden: hiddenSeries.has(1),
         borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.06)',
@@ -642,7 +643,7 @@
         tension: 0.2, fill: false, spanGaps: false,
       },
       {
-        label: 'NASDAQ 1-Yr Forward Return',
+        label: 'NASDAQ Composite (Trailing YoY)',
         data: dates.map(d => sp5Map.get(d) ?? null),
         hidden: hiddenSeries.has(3),
         borderColor: '#ffd166', backgroundColor: 'rgba(255,209,102,0.06)',
