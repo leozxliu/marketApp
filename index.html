@@ -335,7 +335,7 @@
         <span class="dot" style="background:#6bcb77"></span> 30-Year Mortgage Rate
       </button>
       <button class="toggle-btn" id="tog-sp5" onclick="toggleSeries(3)">
-        <span class="dot" style="background:#ffd166"></span> NASDAQ Composite YoY
+        <span class="dot" style="background:#ffd166"></span> NASDAQ 1-Yr Forward Return
       </button>
     </div>
 
@@ -630,7 +630,7 @@
         tension: 0.2, fill: false, spanGaps: false,
       },
       {
-        label: 'NASDAQ Composite YoY',
+        label: 'NASDAQ 1-Yr Forward Return',
         data: dates.map(d => sp5Map.get(d) ?? null),
         hidden: hiddenSeries.has(3),
         borderColor: '#ffd166', backgroundColor: 'rgba(255,209,102,0.06)',

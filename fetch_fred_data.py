@@ -63,7 +63,7 @@ def yoy_monthly(levels):
     return result
 
 def yoy_january(levels):
-    """YoY: (end/start - 1)*100, labeled at the START of each 12-month window."""
+    """Forward 1-year return: labeled at entry date, value = (price_12mo_later/price_now - 1)*100."""
     lookup = {d['date']: d['value'] for d in levels}
     result = []
     for obs in levels:
