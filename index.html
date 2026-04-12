@@ -90,10 +90,11 @@
       width: 100%;
       max-width: 1020px;
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 14px;
     }
-    @media (max-width: 600px) { .cards { grid-template-columns: 1fr; } }
+    @media (max-width: 800px) { .cards { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .cards { grid-template-columns: 1fr; } }
 
     .card {
       background: var(--surface);
