@@ -501,7 +501,23 @@
               color: '#4a5070',
               maxTicksLimit: 15,
               font: { size: 11 },
-              callback: (val) => typeof val === 'string' && val.includes('-') ? val.split('-')[0] : val,
+              callback: function(val, index, ticks) {
+                const label = this.getLabelForValue(val);
+                if (!label || !label.includes('-')) return label;
+                const [year, month] = label.split('-');
+                const allLabels = this.chart.data.labels;
+                const spanYears = allLabels && allLabels.length > 1
+                  ? parseInt(allLabels[allLabels.length - 1]) - parseInt(allLabels[0])
+                  : 0;
+                if (spanYears > 8) {
+                  // Year only; deduplicate so each year appears once
+                  if (index === 0) return year;
+                  const prev = this.getLabelForValue(ticks[index - 1].value);
+                  return prev && prev.split('-')[0] !== year ? year : '';
+                } else {
+                  return MONTH_NAMES[parseInt(month) - 1] + ' ' + year;
+                }
+              },
             },
             grid:   { color: 'rgba(255,255,255,0.03)' },
             border: { color: 'rgba(255,255,255,0.05)' },
