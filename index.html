@@ -326,10 +326,10 @@
 
     <div class="legend-toggles" id="legendToggles">
       <button class="toggle-btn" id="tog-hpi" onclick="toggleSeries(0)">
-        <span class="dot" style="background:#4fc3f7"></span> House Price Index (Trailing YoY)
+        <span class="dot" style="background:#4fc3f7"></span> House Price Index (1-Yr Forward)
       </button>
       <button class="toggle-btn" id="tog-cpi" onclick="toggleSeries(1)">
-        <span class="dot" style="background:#ff6b6b"></span> Inflation Rate / CPI (Trailing YoY)
+        <span class="dot" style="background:#ff6b6b"></span> Inflation Rate / CPI (1-Yr Forward)
       </button>
       <button class="toggle-btn" id="tog-mrt" onclick="toggleSeries(2)">
         <span class="dot" style="background:#6bcb77"></span> 30-Year Mortgage Rate
@@ -606,7 +606,7 @@
     if (chart) chart._cx = null;
     chart.data.datasets = [
       {
-        label: 'House Price Index (Trailing YoY)',
+        label: 'House Price Index (1-Yr Forward)',
         data: dates.map(d => hpiMap.get(d) ?? null),
         hidden: hiddenSeries.has(0),
         borderColor: '#4fc3f7', backgroundColor: 'rgba(79,195,247,0.06)',
@@ -614,7 +614,7 @@
         tension: 0.2, fill: false, spanGaps: false,
       },
       {
-        label: 'Inflation Rate / CPI (Trailing YoY)',
+        label: 'Inflation Rate / CPI (1-Yr Forward)',
         data: dates.map(d => cpiMap.get(d) ?? null),
         hidden: hiddenSeries.has(1),
         borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.06)',

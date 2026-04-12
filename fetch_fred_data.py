@@ -21,9 +21,9 @@ if not API_KEY:
     sys.exit('Error: FRED_API_KEY environment variable is not set.')
 
 SERIES = {
-    'cpi':      {'id': 'CPIAUCSL',     'start': 1946, 'yoy': True},
+    'cpi':      {'id': 'CPIAUCSL',     'start': 1946, 'yoy': False, 'jan_yoy': True},
     'mortgage': {'id': 'MORTGAGE30US', 'start': 1971, 'yoy': False},
-    'hpi':      {'id': 'CSUSHPISA',    'start': 1986, 'yoy': True},  # S&P/Case-Shiller, monthly from Jan 1987
+    'hpi':      {'id': 'CSUSHPISA',    'start': 1986, 'yoy': False, 'jan_yoy': True},  # S&P/Case-Shiller, monthly from Jan 1987
     'nasdaq':   {'id': 'NASDAQCOM',   'start': 1970, 'yoy': False, 'jan_yoy': True},  # NASDAQ Composite (from 1971)
 }
 
