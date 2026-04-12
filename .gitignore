@@ -1,0 +1,5 @@
+# Local data cache — commit this so GitHub Pages can serve it
+# fred_data.json is intentionally tracked
+
+# Never commit secrets
+.env

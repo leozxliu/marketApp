@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>US Housing, Inflation & Mortgage Rates</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117; color: #e0e0e0;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; padding: 32px 16px 48px; gap: 18px;
+    }
+    h1 { font-size: 1.4rem; font-weight: 600; text-align: center; }
+    .subtitle { font-size: 0.82rem; color: #777; text-align: center; }
+    .banner {
+      width: 100%; max-width: 980px; border-radius: 10px;
+      padding: 16px 20px; font-size: 0.85rem; line-height: 1.75; display: none;
+    }
+    .banner.info { background: #0d1f2d; border: 1px solid #1a5276; color: #7ec8e3; }
+    .banner.warn { background: #2a1a0a; border: 1px solid #7c4a10; color: #f0b060; }
+    .banner code {
+      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 4px; padding: 1px 8px; font-family: monospace; font-size: 0.88em;
+    }
+    .banner a { color: #4fc3f7; text-decoration: none; }
+    .banner a:hover { text-decoration: underline; }
+    .panel { width: 100%; max-width: 980px; background: #1a1d27; border-radius: 12px; padding: 20px 24px; }
+    .slider-row { display: flex; flex-direction: column; gap: 14px; }
+    .slider-labels { display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; color: #888; }
+    .slider-labels b { color: #e0e0e0; font-size: 0.92rem; }
+    .noUi-target { background: #0f1117; border: 1px solid #2e3142; border-radius: 4px; box-shadow: none; }
+    .noUi-connect { background: #4fc3f7; }
+    .noUi-handle {
+      background: #4fc3f7; border: none; border-radius: 50%;
+      width: 16px !important; height: 16px !important;
+      top: -5px !important; right: -8px !important;
+      box-shadow: 0 0 0 3px rgba(79,195,247,0.25); cursor: grab;
+    }
+    .noUi-handle:active { cursor: grabbing; }
+    .noUi-handle::before, .noUi-handle::after { display: none; }
+    .noUi-tooltip {
+      background: #1a1d27; border: 1px solid #333;
+      color: #e0e0e0; font-size: 0.75rem; padding: 2px 7px; border-radius: 4px;
+    }
+    .chart-wrap {
+      width: 100%; max-width: 980px; background: #1a1d27;
+      border-radius: 12px; padding: 24px 24px 16px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.45);
+    }
+    .status { font-size: 0.82rem; color: #777; text-align: center; min-height: 18px; }
+    .status.error   { color: #ef5350; }
+    .status.loading { color: #4fc3f7; }
+    .sources { font-size: 0.72rem; color: #555; text-align: center; line-height: 1.85; max-width: 980px; }
+    .sources a { color: #4fc3f7; text-decoration: none; }
+    .sources a:hover { text-decoration: underline; }
+    .sources strong { color: #777; }
+  </style>
+</head>
+<body>
+
+  <h1>United States: House Prices, Inflation &amp; Mortgage Rates</h1>
+  <p class="subtitle">Data from FRED (Federal Reserve Bank of St. Louis) &middot; Earliest available through present</p>
+
+  <div class="banner warn" id="noDataBanner">
+    <strong>&#9888; No data file found.</strong> Run the following command once to fetch data from FRED, then reload this page:<br />
+    <code>cd "/Users/leonardoliu/Desktop/git/marketApp" &amp;&amp; python3 fetch_fred_data.py</code>
+  </div>
+
+  <div class="banner info" id="dataBanner">
+    Data loaded from <code>fred_data.json</code> &mdash; fetched on <span id="fetchedOn">&mdash;</span>.
+    &nbsp; To refresh: <code>python3 fetch_fred_data.py</code> then reload.
+  </div>
+
+  <div class="panel" id="sliderPanel" style="display:none">
+    <div class="slider-row">
+      <div class="slider-labels">
+        <span>Time Range: &nbsp;<b id="rangeDisplay">&mdash;</b></span>
+        <span style="font-size:0.72rem;color:#444">CPI from 1948 &middot; Mortgage from 1971 &middot; HPI from 1976</span>
+      </div>
+      <div id="yearSlider"></div>
+    </div>
+  </div>
+
+  <div id="status" class="status loading">Loading fred_data.json&hellip;</div>
+
+  <div class="chart-wrap">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="sources">
+    <strong>Data Sources</strong><br />
+    <a href="https://fred.stlouisfed.org/series/CPIAUCSL" target="_blank" rel="noopener">CPI Inflation &mdash; FRED: CPIAUCSL</a>
+    &nbsp;(BLS CPI All Urban Consumers, seasonally adj., monthly from Jan 1947. Annual YoY = year-avg level change.)<br />
+    <a href="https://fred.stlouisfed.org/series/MORTGAGE30US" target="_blank" rel="noopener">30-Year Mortgage Rate &mdash; FRED: MORTGAGE30US</a>
+    &nbsp;(Freddie Mac PMMS, weekly from Apr 1971. Annual average shown.)<br />
+    <a href="https://fred.stlouisfed.org/series/USSTHPI" target="_blank" rel="noopener">House Price Index &mdash; FRED: USSTHPI</a>
+    &nbsp;(FHFA Purchase-Only HPI, seasonally adj., quarterly from Q1 1975. Annual YoY = year-avg level change.)<br />
+    Fetched via <a href="https://fred.stlouisfed.org/docs/api/fred/" target="_blank" rel="noopener">FRED API</a>
+    using <code>fetch_fred_data.py</code> and cached in <code>fred_data.json</code>.
+  </div>
+
+<script>
+  let rangeStart = 1947, rangeEnd = new Date().getFullYear();
+  let store = { cpi: [], mortgage: [], hpi: [] };
+  let chart = null;
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const res = await fetch('fred_data.json');
+      if (!res.ok) throw new Error('not found');
+      const data = await res.json();
+      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi };
+      document.getElementById('fetchedOn').textContent = data.fetched_at || 'unknown';
+      document.getElementById('dataBanner').style.display = 'block';
+      document.getElementById('sliderPanel').style.display = 'block';
+      document.getElementById('status').textContent = '';
+      initSlider();
+      buildChart();
+    } catch {
+      document.getElementById('noDataBanner').style.display = 'block';
+      setStatus('Run python3 fetch_fred_data.py to generate fred_data.json, then reload.', 'error');
+    }
+  });
+
+  function initSlider() {
+    const allYears = [...store.cpi, ...store.mortgage, ...store.hpi].map(d => d.year);
+    const dMin = Math.min(...allYears), dMax = Math.max(...allYears);
+    rangeStart = dMin; rangeEnd = dMax;
+    const el = document.getElementById('yearSlider');
+    noUiSlider.create(el, {
+      start: [dMin, dMax], connect: true, step: 1,
+      range: { min: dMin, max: dMax },
+      tooltips: [{ to: v => Math.round(v).toString() }, { to: v => Math.round(v).toString() }],
+      format: { to: v => Math.round(v), from: Number },
+    });
+    el.noUiSlider.on('update', (vals) => {
+      rangeStart = +vals[0]; rangeEnd = +vals[1];
+      document.getElementById('rangeDisplay').textContent = rangeStart + ' \u2013 ' + rangeEnd;
+      if (chart) refreshChart();
+    });
+    document.getElementById('rangeDisplay').textContent = dMin + ' \u2013 ' + dMax;
+  }
+
+  function aligned(series, years) {
+    const m = new Map(series.map(d => [d.year, d.value]));
+    return years.map(y => m.has(y) ? +m.get(y).toFixed(2) : null);
+  }
+
+  function buildChart() {
+    if (chart) { chart.destroy(); chart = null; }
+    const ctx = document.getElementById('chart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { color: '#ccc', font: { size: 12 }, padding: 24, usePointStyle: true, pointStyleWidth: 20,
+              filter: item => item.text !== '_zero' },
+          },
+          tooltip: {
+            backgroundColor: '#1e2130', titleColor: '#fff', bodyColor: '#ccc',
+            borderColor: '#2e3142', borderWidth: 1, padding: 14,
+            filter: item => item.dataset.label !== '_zero',
+            callbacks: { label: c => c.parsed.y !== null ? ' ' + c.dataset.label + ': ' + c.parsed.y.toFixed(2) + '%' : ' ' + c.dataset.label + ': N/A' },
+          },
+        },
+        scales: {
+          x: { ticks: { color: '#666', maxTicksLimit: 20, font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#666', font: { size: 11 }, callback: v => v + '%' },
+               grid: { color: 'rgba(255,255,255,0.06)' },
+               title: { display: true, text: 'Percent (%)', color: '#555', font: { size: 11 } } },
+        },
+      },
+    });
+    refreshChart();
+  }
+
+  function refreshChart() {
+    if (!chart) return;
+    const years = Array.from({ length: rangeEnd - rangeStart + 1 }, (_, i) => rangeStart + i);
+    chart.data.labels = years;
+    chart.data.datasets = [
+      { label: 'House Price Index YoY (%)', data: aligned(store.hpi, years),
+        borderColor: '#4fc3f7', backgroundColor: 'rgba(79,195,247,0.07)',
+        borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, spanGaps: false },
+      { label: 'Inflation Rate \u2014 CPI YoY (%)', data: aligned(store.cpi, years),
+        borderColor: '#ef5350', backgroundColor: 'rgba(239,83,80,0.07)',
+        borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, spanGaps: false },
+      { label: '30-Year Mortgage Rate (%)', data: aligned(store.mortgage, years),
+        borderColor: '#66bb6a', backgroundColor: 'rgba(102,187,106,0.07)',
+        borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, spanGaps: false },
+      { label: '_zero', data: years.map(() => 0),
+        borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderDash: [4,4],
+        pointRadius: 0, tension: 0, fill: false, spanGaps: true },
+    ];
+    chart.update();
+  }
+
+  function setStatus(msg, type) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status' + (type ? ' ' + type : '');
+  }
+</script>
+</body>
+</html>
