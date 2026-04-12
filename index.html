@@ -652,6 +652,32 @@
     canvas.style.cursor = 'grab';
     let pan = null;
 
+    // Scroll wheel / vertical drag to zoom
+    canvas.addEventListener('wheel', e => {
+      if (!chart || !chart.chartArea) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const { left, right } = chart.chartArea;
+      if (mx < left || mx > right) return;
+      e.preventDefault();
+
+      const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15; // scroll down = zoom out, up = zoom in
+      const f = (mx - left) / (right - left);          // cursor position as fraction of range
+      const span = rangeEnd - rangeStart;
+      const pivot = rangeStart + f * span;              // year under cursor stays fixed
+      const newSpan = Math.max(1, Math.min(dataMax - dataMin, Math.round(span * factor)));
+      const ns = Math.max(dataMin, Math.min(dataMax - newSpan, Math.round(pivot - f * newSpan)));
+      rangeStart = ns;
+      rangeEnd = ns + newSpan;
+      document.getElementById('rangeDisplay').textContent = rangeStart + '\u2013' + rangeEnd;
+      syncPresetButtons();
+      refreshChart(true);
+      // Sync slider without triggering a second refresh
+      _panActive = true;
+      document.getElementById('yearSlider').noUiSlider.set([rangeStart, rangeEnd]);
+      _panActive = false;
+    }, { passive: false });
+
     canvas.addEventListener('mousedown', e => {
       if (!chart || !chart.chartArea) return;
       const rect = canvas.getBoundingClientRect();
