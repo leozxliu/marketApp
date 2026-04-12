@@ -479,19 +479,23 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#1a1e2e',
+            backgroundColor: 'rgba(18,22,38,0.72)',
             titleColor: '#e4e6f0',
             bodyColor: '#9ba0be',
-            borderColor: '#252a3a',
+            borderColor: 'rgba(255,255,255,0.08)',
             borderWidth: 1,
             padding: 14,
             cornerRadius: 10,
+            boxWidth: 10,
+            boxHeight: 10,
+            usePointStyle: false,
             filter: item => item.dataset.label !== '_zero',
             callbacks: {
               title: items => fmtDate(items[0]?.label || ''),
               label: c => c.parsed.y !== null
                 ? '  ' + c.dataset.label + ':  ' + (c.dataset.label.includes('Mortgage') ? '' : c.parsed.y > 0 ? '+' : '') + c.parsed.y.toFixed(2) + '%'
                 : '  ' + c.dataset.label + ':  N/A',
+              labelColor: c => ({ borderColor: c.dataset.borderColor, backgroundColor: c.dataset.borderColor }),
             },
           },
         },
