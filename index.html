@@ -361,6 +361,41 @@
   let chart = null;
   const hiddenSeries = new Set();
 
+  // ---- Crosshair plugin ----
+  const crosshairPlugin = {
+    id: 'crosshair',
+    afterEvent(chart, args) {
+      const e = args.event;
+      if (!chart.chartArea) return;
+      const { left, right, top, bottom } = chart.chartArea;
+      if (e.type === 'mousemove') {
+        if (e.x >= left && e.x <= right && e.y >= top && e.y <= bottom) {
+          chart._cx = e.x; chart._cy = e.y;
+        } else {
+          chart._cx = null;
+        }
+        args.changed = true;
+      } else if (e.type === 'mouseout') {
+        chart._cx = null;
+        args.changed = true;
+      }
+    },
+    afterDraw(chart) {
+      if (chart._cx == null) return;
+      const { ctx, chartArea: { left, right, top, bottom } } = chart;
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(chart._cx, top);  ctx.lineTo(chart._cx, bottom);
+      ctx.moveTo(left, chart._cy); ctx.lineTo(right, chart._cy);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+  Chart.register(crosshairPlugin);
+
   const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   function fmtDate(d) {
     if (!d || !d.includes('-')) return d;
@@ -386,6 +421,7 @@
       document.getElementById('chartPanel').style.display = 'block';
       initSlider();
       buildChart();
+      attachCanvasEvents();
     } catch {
       document.getElementById('loadingWrap').style.display = 'none';
       document.getElementById('errorMsg').style.display = 'block';
@@ -557,6 +593,8 @@
     const mrtMap = new Map(mrtFilt.map(d => [d.date, +d.value.toFixed(2)]));
 
     chart.data.labels = dates;
+    // During pan, suppress crosshair
+    if (chart) chart._cx = null;
     chart.data.datasets = [
       {
         label: 'House Price Index YoY',
@@ -590,6 +628,38 @@
       },
     ];
     chart.update();
+  }
+
+  function attachCanvasEvents() {
+    const canvas = document.getElementById('chart');
+    canvas.style.cursor = 'grab';
+    let pan = null;
+
+    canvas.addEventListener('mousedown', e => {
+      if (!chart || !chart.chartArea) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const { left, right } = chart.chartArea;
+      if (mx < left || mx > right) return;
+      pan = { startX: e.clientX, rs: rangeStart, re: rangeEnd };
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!pan || !chart || !chart.chartArea) return;
+      const dx = e.clientX - pan.startX;
+      const w = chart.chartArea.right - chart.chartArea.left;
+      const span = pan.re - pan.rs;
+      const delta = Math.round((dx / w) * span);
+      if (!delta) return;
+      const ns = Math.max(dataMin, Math.min(dataMax - span, pan.rs - delta));
+      document.getElementById('yearSlider').noUiSlider.set([ns, ns + span]);
+    });
+
+    const endPan = () => { if (pan) { pan = null; canvas.style.cursor = 'grab'; } };
+    window.addEventListener('mouseup', endPan);
+    window.addEventListener('mouseleave', endPan);
   }
 </script>
 </body>
