@@ -586,7 +586,8 @@
           },
           y: {
             ticks: { color: '#8890b0', font: { size: 12, weight: '500' }, callback: v => v + '%' },
-            grid:   { color: 'rgba(255,255,255,0.07)' },
+            grid:   { color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.07)',
+                      lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1 },
             border: { color: '#3a4060', display: true },
           },
         },
