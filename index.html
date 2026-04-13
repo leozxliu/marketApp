@@ -412,6 +412,29 @@
   };
   Chart.register(crosshairPlugin);
 
+  // ---- Negative / positive zone shading ----
+  const negZonePlugin = {
+    id: 'negZone',
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea: { left, right, top, bottom }, scales: { y } } = chart;
+      if (!y) return;
+      const zeroY = y.getPixelForValue(0);
+      ctx.save();
+      if (zeroY > top && zeroY <= bottom) {
+        // below-zero zone: subtle red
+        ctx.fillStyle = 'rgba(255,80,80,0.07)';
+        ctx.fillRect(left, zeroY, right - left, bottom - zeroY);
+      }
+      if (zeroY >= top && zeroY < bottom) {
+        // above-zero zone: very subtle green
+        ctx.fillStyle = 'rgba(107,203,119,0.04)';
+        ctx.fillRect(left, top, right - left, zeroY - top);
+      }
+      ctx.restore();
+    }
+  };
+  Chart.register(negZonePlugin);
+
   const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   function fmtDate(d) {
     if (!d || !d.includes('-')) return d;
@@ -535,17 +558,19 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: 'rgba(18,22,38,0.72)',
+            backgroundColor: 'rgba(12,15,28,0.88)',
             titleColor: '#e4e6f0',
-            bodyColor: '#9ba0be',
-            borderColor: 'rgba(255,255,255,0.08)',
+            bodyColor: '#b0b8d8',
+            borderColor: 'rgba(255,255,255,0.12)',
             borderWidth: 1,
-            padding: 14,
+            padding: 16,
             cornerRadius: 10,
             boxWidth: 10,
             boxHeight: 10,
             usePointStyle: false,
-            filter: item => item.dataset.label !== '_zero',
+            titleFont: { size: 13, weight: '700' },
+            bodyFont: { size: 12.5 },
+            itemSort: () => 0,
             callbacks: {
               title: items => fmtDate(items[0]?.label || ''),
               label: c => c.parsed.y !== null
@@ -585,8 +610,8 @@
             border: { color: '#3a4060', display: true },
           },
           y: {
-            ticks: { color: '#8890b0', font: { size: 12, weight: '500' }, callback: v => v + '%' },
-            grid:   { color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.07)',
+            ticks: { color: '#8890b0', font: { size: 12, weight: '500' }, stepSize: 5, callback: v => v + '%' },
+            grid:   { color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.50)' : 'rgba(255,255,255,0.07)',
                       lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1 },
             border: { color: '#3a4060', display: true },
           },
@@ -625,7 +650,7 @@
         data: dates.map(d => hpiMap.get(d) ?? null),
         hidden: hiddenSeries.has(0),
         borderColor: '#4fc3f7', backgroundColor: 'rgba(79,195,247,0.06)',
-        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 5,
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
         tension: 0.2, fill: false, spanGaps: false,
       },
       {
@@ -633,7 +658,7 @@
         data: dates.map(d => cpiMap.get(d) ?? null),
         hidden: hiddenSeries.has(1),
         borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.06)',
-        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 5,
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
         tension: 0.2, fill: false, spanGaps: false,
       },
       {
@@ -641,7 +666,7 @@
         data: dates.map(d => mrtMap.get(d) ?? null),
         hidden: hiddenSeries.has(2),
         borderColor: '#6bcb77', backgroundColor: 'rgba(107,203,119,0.06)',
-        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 5,
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
         tension: 0.2, fill: false, spanGaps: false,
       },
       {
@@ -649,14 +674,8 @@
         data: dates.map(d => sp5Map.get(d) ?? null),
         hidden: hiddenSeries.has(3),
         borderColor: '#ffd166', backgroundColor: 'rgba(255,209,102,0.06)',
-        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 5,
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
         tension: 0.2, fill: false, spanGaps: false,
-      },
-      {
-        label: '_zero',
-        data: dates.map(() => 0),
-        borderColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderDash: [5,5],
-        pointRadius: 0, tension: 0, fill: false, spanGaps: true,
       },
     ];
     chart.update(noAnim ? 'none' : undefined);
