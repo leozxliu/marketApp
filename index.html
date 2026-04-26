@@ -356,7 +356,7 @@
   <div class="chart-panel" id="cityChartPanel" style="display:none">
     <div style="margin-bottom:18px;">
       <div style="font-size:1.05rem;font-weight:700;color:var(--text);margin-bottom:4px;">City Housing Price Index</div>
-      <div style="font-size:0.8rem;color:var(--muted);">Indexed to Jan 2000 = 100 &nbsp;&middot;&nbsp; S&amp;P/Case-Shiller (SA) &nbsp;&middot;&nbsp; Austin via FHFA (quarterly)</div>
+      <div style="font-size:0.8rem;color:var(--muted);">Trailing YoY % &nbsp;&middot;&nbsp; S&amp;P/Case-Shiller (SA) &nbsp;&middot;&nbsp; Austin via FHFA (quarterly)</div>
     </div>
 
     <div class="controls">
@@ -848,14 +848,6 @@
   const cityHidden = new Set();
   let _cityPanActive = false;
 
-  function normalizeCityData(series) {
-    if (!series.length) return [];
-    const baseObs = series.find(d => d.date === '2000-01') || series[0];
-    const base = baseObs.value;
-    if (!base) return series;
-    return series.map(d => ({ date: d.date, value: +(d.value / base * 100).toFixed(2) }));
-  }
-
   function filteredCity(series) {
     return series.filter(d => {
       const y = parseInt(d.date);
@@ -949,7 +941,7 @@
             callbacks: {
               title: items => fmtDate(items[0]?.label || ''),
               label: c => c.parsed.y !== null
-                ? '  ' + c.dataset.label + ':  ' + c.parsed.y.toFixed(1)
+                ? '  ' + c.dataset.label + ':  ' + (c.parsed.y > 0 ? '+' : '') + c.parsed.y.toFixed(2) + '%'
                 : '  ' + c.dataset.label + ':  N/A',
               labelColor: c => ({ borderColor: c.dataset.borderColor, backgroundColor: c.dataset.borderColor }),
             },
@@ -983,19 +975,14 @@
             ticks: {
               color: '#8890b0',
               font: { size: 12, weight: '500' },
-              callback: v => v.toFixed(0),
+              stepSize: 5,
+              callback: v => v + '%',
             },
             grid: {
-              color: ctx => ctx.tick.value === 100 ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.07)',
-              lineWidth: ctx => ctx.tick.value === 100 ? 2 : 1,
+              color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.50)' : 'rgba(255,255,255,0.07)',
+              lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1,
             },
             border: { color: '#3a4060', display: true },
-            title: {
-              display: true,
-              text: 'Index  (Jan 2000 = 100)',
-              color: '#6b7194',
-              font: { size: 11 },
-            },
           },
         },
       },
@@ -1006,8 +993,7 @@
 
   function refreshCityChart(noAnim) {
     if (!cityChart) return;
-    const normalized = CITIES.map(c => normalizeCityData(cityStore[c.key] || []));
-    const filtered  = normalized.map(arr => filteredCity(arr));
+    const filtered = CITIES.map(c => filteredCity(cityStore[c.key] || []));
     const dates = [...new Set(filtered.flatMap(arr => arr.map(d => d.date)))].sort();
     cityChart._cx = null;
     cityChart.data.labels = dates;
@@ -1066,10 +1052,7 @@
       const mx = e.clientX - rect.left;
       const { left, right } = cityChart.chartArea;
       if (mx < left || mx > right) return;
-      const allVis = CITIES.flatMap(c => {
-        const norm = normalizeCityData(cityStore[c.key] || []);
-        return filteredCity(norm).map(d => d.value);
-      }).filter(v => v != null);
+      const allVis = CITIES.flatMap(c => filteredCity(cityStore[c.key] || []).map(d => d.value)).filter(v => v != null);
       if (allVis.length) {
         const yMin = Math.min(...allVis);
         const yMax = Math.max(...allVis);

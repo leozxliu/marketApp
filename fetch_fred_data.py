@@ -25,13 +25,13 @@ SERIES = {
     'mortgage': {'id': 'MORTGAGE30US', 'start': 1971, 'yoy': False},
     'hpi':      {'id': 'CSUSHPISA',    'start': 1986, 'yoy': True},  # S&P/Case-Shiller, monthly from Jan 1987
     'nasdaq':   {'id': 'NASDAQCOM',   'start': 1970, 'yoy': True},  # NASDAQ Composite (from 1971)
-    # City-level HPI (raw index levels; normalized in the browser to Jan 2000 = 100)
-    'hpi_sf':   {'id': 'SFXRSA',         'start': 1990, 'yoy': False},           # S&P/Case-Shiller San Francisco
-    'hpi_sd':   {'id': 'SDXRSA',         'start': 1990, 'yoy': False},           # S&P/Case-Shiller San Diego
-    'hpi_sea':  {'id': 'SEXRSA',         'start': 1990, 'yoy': False},           # S&P/Case-Shiller Seattle
-    'hpi_dal':  {'id': 'DAXRSA',         'start': 2000, 'yoy': False},           # S&P/Case-Shiller Dallas
-    'hpi_atl':  {'id': 'ATXRSA',         'start': 1991, 'yoy': False},           # S&P/Case-Shiller Atlanta
-    'hpi_aus':  {'id': 'ATNHPIUS12420Q', 'start': 1990, 'yoy': False, 'freq': 'q'},  # FHFA Austin (quarterly)
+    # City-level HPI (trailing YoY %)
+    'hpi_sf':   {'id': 'SFXRSA',         'start': 1990, 'yoy': True},            # S&P/Case-Shiller San Francisco
+    'hpi_sd':   {'id': 'SDXRSA',         'start': 1990, 'yoy': True},            # S&P/Case-Shiller San Diego
+    'hpi_sea':  {'id': 'SEXRSA',         'start': 1990, 'yoy': True},            # S&P/Case-Shiller Seattle
+    'hpi_dal':  {'id': 'DAXRSA',         'start': 2000, 'yoy': True},            # S&P/Case-Shiller Dallas
+    'hpi_atl':  {'id': 'ATXRSA',         'start': 1991, 'yoy': True},            # S&P/Case-Shiller Atlanta
+    'hpi_aus':  {'id': 'ATNHPIUS12420Q', 'start': 1990, 'yoy': True, 'freq': 'q'},  # FHFA Austin (quarterly)
 }
 
 def fred_fetch(series_id, start_year, freq='m'):
