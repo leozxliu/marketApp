@@ -25,14 +25,21 @@ SERIES = {
     'mortgage': {'id': 'MORTGAGE30US', 'start': 1971, 'yoy': False},
     'hpi':      {'id': 'CSUSHPISA',    'start': 1986, 'yoy': True},  # S&P/Case-Shiller, monthly from Jan 1987
     'nasdaq':   {'id': 'NASDAQCOM',   'start': 1970, 'yoy': True},  # NASDAQ Composite (from 1971)
+    # City-level HPI (raw index levels; normalized in the browser to Jan 2000 = 100)
+    'hpi_sf':   {'id': 'SFXRSA',         'start': 1990, 'yoy': False},           # S&P/Case-Shiller San Francisco
+    'hpi_sd':   {'id': 'SDXRSA',         'start': 1990, 'yoy': False},           # S&P/Case-Shiller San Diego
+    'hpi_sea':  {'id': 'SEXRSA',         'start': 1990, 'yoy': False},           # S&P/Case-Shiller Seattle
+    'hpi_dal':  {'id': 'DAXRSA',         'start': 2000, 'yoy': False},           # S&P/Case-Shiller Dallas
+    'hpi_atl':  {'id': 'ATXRSA',         'start': 1991, 'yoy': False},           # S&P/Case-Shiller Atlanta
+    'hpi_aus':  {'id': 'ATNHPIUS12420Q', 'start': 1990, 'yoy': False, 'freq': 'q'},  # FHFA Austin (quarterly)
 }
 
-def fred_fetch_monthly(series_id, start_year):
+def fred_fetch(series_id, start_year, freq='m'):
     params = urlencode({
         'series_id':          series_id,
         'api_key':            API_KEY,
         'file_type':          'json',
-        'frequency':          'm',
+        'frequency':          freq,
         'aggregation_method': 'avg',
         'observation_start':  f'{start_year}-01-01',
         'sort_order':         'asc',
@@ -81,7 +88,7 @@ output = {'fetched_at': datetime.now().strftime('%B %d, %Y')}
 
 for key, cfg in SERIES.items():
     print(f'  {key.upper()} ({cfg["id"]})...', end=' ', flush=True)
-    raw = fred_fetch_monthly(cfg['id'], cfg['start'])
+    raw = fred_fetch(cfg['id'], cfg['start'], cfg.get('freq', 'm'))
     if cfg.get('jan_yoy'):
         output[key] = yoy_january(raw)
     elif cfg['yoy']:
@@ -98,3 +105,6 @@ print(f'  CPI:      {output["cpi"][0]["date"]}\u2013{output["cpi"][-1]["date"]}'
 print(f'  Mortgage: {output["mortgage"][0]["date"]}\u2013{output["mortgage"][-1]["date"]}')
 print(f'  HPI:      {output["hpi"][0]["date"]}\u2013{output["hpi"][-1]["date"]}')
 print(f'  NASDAQ:   {output["nasdaq"][0]["date"]}\u2013{output["nasdaq"][-1]["date"]}')
+for city_key in ('hpi_sf', 'hpi_sd', 'hpi_sea', 'hpi_dal', 'hpi_atl', 'hpi_aus'):
+    d = output[city_key]
+    print(f'  {city_key.upper():10s} {d[0]["date"]}\u2013{d[-1]["date"]}  ({len(d)} records)')

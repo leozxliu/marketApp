@@ -352,6 +352,51 @@
     <canvas id="chart"></canvas>
   </div>
 
+  <!-- City Housing Price Index Chart -->
+  <div class="chart-panel" id="cityChartPanel" style="display:none">
+    <div style="margin-bottom:18px;">
+      <div style="font-size:1.05rem;font-weight:700;color:var(--text);margin-bottom:4px;">City Housing Price Index</div>
+      <div style="font-size:0.8rem;color:var(--muted);">Indexed to Jan 2000 = 100 &nbsp;&middot;&nbsp; S&amp;P/Case-Shiller (SA) &nbsp;&middot;&nbsp; Austin via FHFA (quarterly)</div>
+    </div>
+
+    <div class="controls">
+      <div class="preset-group" id="cityPresetGroup">
+        <button class="preset-btn" onclick="setCityPreset(10)">10Y</button>
+        <button class="preset-btn" onclick="setCityPreset(20)">20Y</button>
+        <button class="preset-btn" onclick="setCityPreset(30)">30Y</button>
+        <button class="preset-btn" onclick="setCityPreset(0)">All</button>
+      </div>
+      <div class="range-label">Range: <b id="cityRangeDisplay">&mdash;</b></div>
+    </div>
+
+    <div class="slider-wrap">
+      <div id="cityYearSlider"></div>
+    </div>
+
+    <div class="legend-toggles">
+      <button class="toggle-btn" id="ctog-0" onclick="toggleCity(0)">
+        <span class="dot" style="background:#4fc3f7"></span> San Francisco
+      </button>
+      <button class="toggle-btn" id="ctog-1" onclick="toggleCity(1)">
+        <span class="dot" style="background:#ff9f43"></span> San Diego
+      </button>
+      <button class="toggle-btn" id="ctog-2" onclick="toggleCity(2)">
+        <span class="dot" style="background:#6bcb77"></span> Seattle
+      </button>
+      <button class="toggle-btn" id="ctog-3" onclick="toggleCity(3)">
+        <span class="dot" style="background:#ffd166"></span> Dallas
+      </button>
+      <button class="toggle-btn" id="ctog-4" onclick="toggleCity(4)">
+        <span class="dot" style="background:#c77dff"></span> Atlanta
+      </button>
+      <button class="toggle-btn" id="ctog-5" onclick="toggleCity(5)">
+        <span class="dot" style="background:#ff6b6b"></span> Austin <span style="font-size:0.7em;color:var(--muted);margin-left:3px;">(FHFA)</span>
+      </button>
+    </div>
+
+    <canvas id="cityChart"></canvas>
+  </div>
+
   <div class="footer">
     <a href="https://fred.stlouisfed.org/series/CSUSHPISA" target="_blank" rel="noopener">S&amp;P/Case-Shiller HPI</a>
     <span class="footer-sep">·</span>
@@ -460,6 +505,21 @@
       initSlider();
       buildChart();
       attachCanvasEvents();
+
+      // City HPI chart
+      cityStore = {
+        hpi_sf:  data.hpi_sf  || [],
+        hpi_sd:  data.hpi_sd  || [],
+        hpi_sea: data.hpi_sea || [],
+        hpi_dal: data.hpi_dal || [],
+        hpi_atl: data.hpi_atl || [],
+        hpi_aus: data.hpi_aus || [],
+      };
+      if (Object.values(cityStore).some(arr => arr.length > 0)) {
+        document.getElementById('cityChartPanel').style.display = 'block';
+        initCitySlider();
+        buildCityChart();
+      }
     } catch {
       document.getElementById('loadingWrap').style.display = 'none';
       document.getElementById('errorMsg').style.display = 'block';
@@ -770,6 +830,285 @@
     };
     window.addEventListener('mouseup', endPan);
     window.addEventListener('mouseleave', endPan);
+  }
+
+  // ── City Housing Price Index Chart ────────────────────────────────────────
+  const CITIES = [
+    { key: 'hpi_sf',  label: 'San Francisco', color: '#4fc3f7', bg: 'rgba(79,195,247,0.06)'  },
+    { key: 'hpi_sd',  label: 'San Diego',     color: '#ff9f43', bg: 'rgba(255,159,67,0.06)'  },
+    { key: 'hpi_sea', label: 'Seattle',        color: '#6bcb77', bg: 'rgba(107,203,119,0.06)' },
+    { key: 'hpi_dal', label: 'Dallas',         color: '#ffd166', bg: 'rgba(255,209,102,0.06)' },
+    { key: 'hpi_atl', label: 'Atlanta',        color: '#c77dff', bg: 'rgba(199,125,255,0.06)' },
+    { key: 'hpi_aus', label: 'Austin',         color: '#ff6b6b', bg: 'rgba(255,107,107,0.06)' },
+  ];
+
+  let cityStore = {};
+  let cityChart = null;
+  let cityRangeStart, cityRangeEnd, cityDataMin, cityDataMax;
+  const cityHidden = new Set();
+  let _cityPanActive = false;
+
+  function normalizeCityData(series) {
+    if (!series.length) return [];
+    const baseObs = series.find(d => d.date === '2000-01') || series[0];
+    const base = baseObs.value;
+    if (!base) return series;
+    return series.map(d => ({ date: d.date, value: +(d.value / base * 100).toFixed(2) }));
+  }
+
+  function filteredCity(series) {
+    return series.filter(d => {
+      const y = parseInt(d.date);
+      return y >= cityRangeStart && y <= cityRangeEnd;
+    });
+  }
+
+  function initCitySlider() {
+    const allYears = CITIES.flatMap(c => (cityStore[c.key] || []).map(d => parseInt(d.date)));
+    if (!allYears.length) return;
+    cityDataMin = Math.min(...allYears);
+    cityDataMax = Math.max(...allYears);
+    cityRangeStart = cityDataMin; cityRangeEnd = cityDataMax;
+
+    const el = document.getElementById('cityYearSlider');
+    noUiSlider.create(el, {
+      start: [cityDataMin, cityDataMax], connect: true, step: 1,
+      range: { min: cityDataMin, max: cityDataMax },
+      tooltips: [{ to: v => Math.round(v).toString() }, { to: v => Math.round(v).toString() }],
+      format: { to: v => Math.round(v), from: Number },
+    });
+    el.noUiSlider.on('update', (vals) => {
+      cityRangeStart = +vals[0]; cityRangeEnd = +vals[1];
+      document.getElementById('cityRangeDisplay').textContent = cityRangeStart + '\u2013' + cityRangeEnd;
+      syncCityPresets();
+      if (cityChart && !_cityPanActive) refreshCityChart();
+    });
+    document.getElementById('cityRangeDisplay').textContent = cityDataMin + '\u2013' + cityDataMax;
+    syncCityPresets();
+  }
+
+  function setCityPreset(years) {
+    const slider = document.getElementById('cityYearSlider').noUiSlider;
+    const start = years === 0 ? cityDataMin : Math.max(cityDataMin, cityDataMax - years);
+    slider.set([start, cityDataMax]);
+  }
+
+  function syncCityPresets() {
+    const span = cityDataMax - cityRangeStart;
+    const btns = document.querySelectorAll('#cityPresetGroup .preset-btn');
+    const presets = [10, 20, 30, 0];
+    btns.forEach((btn, i) => {
+      const p = presets[i];
+      const match = p === 0
+        ? cityRangeStart === cityDataMin
+        : (span === p && cityRangeStart === cityDataMax - p);
+      btn.classList.toggle('active', match);
+    });
+  }
+
+  function toggleCity(idx) {
+    const btn = document.getElementById('ctog-' + idx);
+    if (cityHidden.has(idx)) {
+      cityHidden.delete(idx);
+      btn.classList.remove('hidden-series');
+    } else {
+      cityHidden.add(idx);
+      btn.classList.add('hidden-series');
+    }
+    if (cityChart) refreshCityChart();
+  }
+
+  function buildCityChart() {
+    if (cityChart) { cityChart.destroy(); cityChart = null; }
+    const ctx = document.getElementById('cityChart').getContext('2d');
+    cityChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.9,
+        animation: { duration: 200 },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(12,15,28,0.88)',
+            titleColor: '#e4e6f0',
+            bodyColor: '#b0b8d8',
+            borderColor: 'rgba(255,255,255,0.12)',
+            borderWidth: 1,
+            padding: 16,
+            cornerRadius: 10,
+            boxWidth: 10,
+            boxHeight: 10,
+            usePointStyle: false,
+            titleFont: { size: 13, weight: '700' },
+            bodyFont: { size: 12.5 },
+            itemSort: () => 0,
+            callbacks: {
+              title: items => fmtDate(items[0]?.label || ''),
+              label: c => c.parsed.y !== null
+                ? '  ' + c.dataset.label + ':  ' + c.parsed.y.toFixed(1)
+                : '  ' + c.dataset.label + ':  N/A',
+              labelColor: c => ({ borderColor: c.dataset.borderColor, backgroundColor: c.dataset.borderColor }),
+            },
+          },
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: '#8890b0', autoSkip: false, maxRotation: 45,
+              font: { size: 12, weight: '500' },
+              callback: function(val) {
+                const label = this.getLabelForValue(val);
+                if (!label || !label.includes('-')) return label;
+                const [year, month] = label.split('-');
+                const allLabels = this.chart.data.labels;
+                const spanYears = allLabels && allLabels.length > 1
+                  ? parseInt(allLabels[allLabels.length - 1]) - parseInt(allLabels[0]) : 0;
+                if (spanYears > 8) {
+                  if (month !== '01') return null;
+                  const step = spanYears >= 50 ? 3 : spanYears >= 30 ? 2 : 1;
+                  return parseInt(year) % step === 0 ? year : null;
+                } else {
+                  return parseInt(month) % 3 === 1 ? MONTH_NAMES[parseInt(month) - 1] + ' ' + year : null;
+                }
+              },
+            },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            border: { color: '#3a4060', display: true },
+          },
+          y: {
+            ticks: {
+              color: '#8890b0',
+              font: { size: 12, weight: '500' },
+              callback: v => v.toFixed(0),
+            },
+            grid: {
+              color: ctx => ctx.tick.value === 100 ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.07)',
+              lineWidth: ctx => ctx.tick.value === 100 ? 2 : 1,
+            },
+            border: { color: '#3a4060', display: true },
+            title: {
+              display: true,
+              text: 'Index  (Jan 2000 = 100)',
+              color: '#6b7194',
+              font: { size: 11 },
+            },
+          },
+        },
+      },
+    });
+    refreshCityChart();
+    attachCityCanvasEvents();
+  }
+
+  function refreshCityChart(noAnim) {
+    if (!cityChart) return;
+    const normalized = CITIES.map(c => normalizeCityData(cityStore[c.key] || []));
+    const filtered  = normalized.map(arr => filteredCity(arr));
+    const dates = [...new Set(filtered.flatMap(arr => arr.map(d => d.date)))].sort();
+    cityChart._cx = null;
+    cityChart.data.labels = dates;
+    cityChart.data.datasets = CITIES.map((c, i) => {
+      const map = new Map(filtered[i].map(d => [d.date, d.value]));
+      return {
+        label: c.label,
+        data: dates.map(d => map.get(d) ?? null),
+        hidden: cityHidden.has(i),
+        borderColor: c.color,
+        backgroundColor: c.bg,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        tension: 0.2,
+        fill: false,
+        spanGaps: true,
+      };
+    });
+    cityChart.update(noAnim ? 'none' : undefined);
+  }
+
+  function attachCityCanvasEvents() {
+    const canvas = document.getElementById('cityChart');
+    canvas.style.cursor = 'grab';
+    let pan = null;
+
+    canvas.addEventListener('wheel', e => {
+      if (!cityChart || !cityChart.chartArea) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const { left, right } = cityChart.chartArea;
+      if (mx < left || mx > right) return;
+      e.preventDefault();
+      const f = (mx - left) / (right - left);
+      const span = cityRangeEnd - cityRangeStart;
+      const pivot = cityRangeStart + f * span;
+      const delta = Math.max(1, Math.round(span * 0.15));
+      const newSpan = e.deltaY > 0
+        ? Math.min(cityDataMax - cityDataMin, span + delta)
+        : Math.max(1, span - delta);
+      const ns = Math.max(cityDataMin, Math.min(cityDataMax - newSpan, Math.round(pivot - f * newSpan)));
+      cityRangeStart = ns;
+      cityRangeEnd = ns + newSpan;
+      document.getElementById('cityRangeDisplay').textContent = cityRangeStart + '\u2013' + cityRangeEnd;
+      syncCityPresets();
+      refreshCityChart(true);
+      _cityPanActive = true;
+      document.getElementById('cityYearSlider').noUiSlider.set([cityRangeStart, cityRangeEnd]);
+      _cityPanActive = false;
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', e => {
+      if (!cityChart || !cityChart.chartArea) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const { left, right } = cityChart.chartArea;
+      if (mx < left || mx > right) return;
+      const allVis = CITIES.flatMap(c => {
+        const norm = normalizeCityData(cityStore[c.key] || []);
+        return filteredCity(norm).map(d => d.value);
+      }).filter(v => v != null);
+      if (allVis.length) {
+        const yMin = Math.min(...allVis);
+        const yMax = Math.max(...allVis);
+        const pad = (yMax - yMin) * 0.12;
+        cityChart.options.scales.y.min = Math.floor(yMin - pad);
+        cityChart.options.scales.y.max = Math.ceil(yMax + pad);
+      }
+      _cityPanActive = true;
+      pan = { startX: e.clientX, rs: cityRangeStart, re: cityRangeEnd };
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!pan || !cityChart || !cityChart.chartArea) return;
+      const dx = e.clientX - pan.startX;
+      const w = cityChart.chartArea.right - cityChart.chartArea.left;
+      const span = pan.re - pan.rs;
+      const delta = Math.round((dx / w) * span);
+      const ns = Math.max(cityDataMin, Math.min(cityDataMax - span, pan.rs - delta));
+      const ne = ns + span;
+      if (ns === cityRangeStart) return;
+      cityRangeStart = ns; cityRangeEnd = ne;
+      document.getElementById('cityRangeDisplay').textContent = cityRangeStart + '\u2013' + cityRangeEnd;
+      syncCityPresets();
+      refreshCityChart(true);
+    });
+
+    const endCityPan = () => {
+      if (!pan) return;
+      pan = null;
+      _cityPanActive = false;
+      canvas.style.cursor = 'grab';
+      cityChart.options.scales.y.min = undefined;
+      cityChart.options.scales.y.max = undefined;
+      document.getElementById('cityYearSlider').noUiSlider.set([cityRangeStart, cityRangeEnd]);
+    };
+    window.addEventListener('mouseup', endCityPan);
+    window.addEventListener('mouseleave', endCityPan);
   }
 </script>
 </body>
