@@ -597,7 +597,7 @@
   <div class="cap-section-title" id="capRateSectionTitle" style="display:none">
     <h2>Cap Rate &amp; Cash-on-Cash Calculator &mdash; Single-Family Home</h2>
     <p>
-      Assumes <b>20% down</b>, 80% financed at the current 30-yr fixed rate
+      Assumes 80% financed by default at the current 30-yr fixed rate
       (<span id="capMortgageRateDisplay">—</span>%).
       &nbsp;&middot;&nbsp; Cap Rate = NOI &divide; Price &nbsp;&middot;&nbsp;
       Cash-on-Cash = (NOI &minus; Annual Debt Service) &divide; Down Payment
@@ -1612,8 +1612,8 @@
     return '$' + Math.round(n).toLocaleString('en-US');
   }
 
-  function computeDebtService(price, mortgageRate) {
-    const loanAmt = price * 0.80;
+  function computeDebtService(price, mortgageRate, loanPct = 0.80) {
+    const loanAmt = price * loanPct;
     const r = mortgageRate / 100 / 12;
     const n = 360;
     const monthly = loanAmt > 0 && r > 0
@@ -1622,20 +1622,23 @@
     return monthly * 12;
   }
 
-  // Called when price or mortgage rate changes — recomputes and overwrites the debt service field.
+  // Called when price, down payment %, or mortgage rate changes — recomputes and overwrites the debt service field.
   function updateDebtService(key) {
-    const price       = parseFloat(document.getElementById('cap-price-' + key).value) || 0;
+    const price        = parseFloat(document.getElementById('cap-price-'  + key).value) || 0;
+    const dpPct        = parseFloat(document.getElementById('cap-dpct-'  + key).value) || 20;
     const mortgageRate = parseFloat(document.getElementById('cap-mrate-' + key).value) || 0;
-    const debt        = computeDebtService(price, mortgageRate);
+    const loanPct      = Math.max(0, 100 - dpPct) / 100;
+    const debt         = computeDebtService(price, mortgageRate, loanPct);
     document.getElementById('cap-debt-' + key).value = Math.round(debt);
   }
 
   function calcCapRate(key) {
-    const price      = parseFloat(document.getElementById('cap-price-' + key).value) || 0;
-    const rent       = parseFloat(document.getElementById('cap-rent-'  + key).value) || 0;
-    const propTax    = parseFloat(document.getElementById('cap-tax-'   + key).value) || 0;
-    const otherExp   = parseFloat(document.getElementById('cap-other-' + key).value) || 0;
-    const annualDebt = parseFloat(document.getElementById('cap-debt-'  + key).value) || 0;
+    const price      = parseFloat(document.getElementById('cap-price-'  + key).value) || 0;
+    const rent       = parseFloat(document.getElementById('cap-rent-'   + key).value) || 0;
+    const propTax    = parseFloat(document.getElementById('cap-tax-'    + key).value) || 0;
+    const otherExp   = parseFloat(document.getElementById('cap-other-'  + key).value) || 0;
+    const annualDebt = parseFloat(document.getElementById('cap-debt-'   + key).value) || 0;
+    const dpPct      = parseFloat(document.getElementById('cap-dpct-'   + key).value) || 20;
 
     const grossAnnual = rent * 12;
     const taxAmt      = price * propTax / 100;
@@ -1643,7 +1646,7 @@
     const noi         = grossAnnual - taxAmt - otherAmt;
     const capRate     = price > 0 ? noi / price * 100 : 0;
 
-    const downPayment = price * 0.20;
+    const downPayment = price * dpPct / 100;
     const leveredCF   = noi - annualDebt;
     const cashOnCash  = downPayment > 0 ? leveredCF / downPayment * 100 : 0;
 
@@ -1675,6 +1678,11 @@
             <label>Purchase Price ($)</label>
             <input id="cap-price-${city.key}" type="number" min="0" step="10000"
               value="${city.price}" oninput="updateDebtService('${city.key}'); calcCapRate('${city.key}')">
+          </div>
+          <div class="cap-field">
+            <label>Down Payment (%)</label>
+            <input id="cap-dpct-${city.key}" type="number" min="0" max="100" step="1"
+              value="20" oninput="updateDebtService('${city.key}'); calcCapRate('${city.key}')">
           </div>
           <div class="cap-field">
             <label>Monthly Rent ($)</label>
@@ -1713,7 +1721,7 @@
             <span class="cap-output-val" id="cap-noi-${city.key}">—</span>
           </div>
           <div class="cap-output-row">
-            <span class="cap-output-label">Down Payment (20%)</span>
+            <span class="cap-output-label">Down Payment</span>
             <span class="cap-output-val" id="cap-down-${city.key}">—</span>
           </div>
           <div class="cap-output-row">
