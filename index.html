@@ -1612,13 +1612,30 @@
     return '$' + Math.round(n).toLocaleString('en-US');
   }
 
+  function computeDebtService(price, mortgageRate) {
+    const loanAmt = price * 0.80;
+    const r = mortgageRate / 100 / 12;
+    const n = 360;
+    const monthly = loanAmt > 0 && r > 0
+      ? loanAmt * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1)
+      : loanAmt / n;
+    return monthly * 12;
+  }
+
+  // Called when price or mortgage rate changes — recomputes and overwrites the debt service field.
+  function updateDebtService(key) {
+    const price       = parseFloat(document.getElementById('cap-price-' + key).value) || 0;
+    const mortgageRate = parseFloat(document.getElementById('cap-mrate-' + key).value) || 0;
+    const debt        = computeDebtService(price, mortgageRate);
+    document.getElementById('cap-debt-' + key).value = Math.round(debt);
+  }
+
   function calcCapRate(key) {
-    const city = CAP_CITIES_CALC.find(c => c.key === key);
-    if (!city) return;
-    const price    = parseFloat(document.getElementById('cap-price-' + key).value) || 0;
-    const rent     = parseFloat(document.getElementById('cap-rent-'  + key).value) || 0;
-    const propTax  = parseFloat(document.getElementById('cap-tax-'   + key).value) || 0;
-    const otherExp = parseFloat(document.getElementById('cap-other-' + key).value) || 0;
+    const price      = parseFloat(document.getElementById('cap-price-' + key).value) || 0;
+    const rent       = parseFloat(document.getElementById('cap-rent-'  + key).value) || 0;
+    const propTax    = parseFloat(document.getElementById('cap-tax-'   + key).value) || 0;
+    const otherExp   = parseFloat(document.getElementById('cap-other-' + key).value) || 0;
+    const annualDebt = parseFloat(document.getElementById('cap-debt-'  + key).value) || 0;
 
     const grossAnnual = rent * 12;
     const taxAmt      = price * propTax / 100;
@@ -1626,23 +1643,14 @@
     const noi         = grossAnnual - taxAmt - otherAmt;
     const capRate     = price > 0 ? noi / price * 100 : 0;
 
-    // Financing: 20% down, 80% loan, 30-yr fixed at currentMortgageRate
-    const downPayment  = price * 0.20;
-    const loanAmt      = price * 0.80;
-    const r            = currentMortgageRate / 100 / 12;  // monthly rate
-    const n            = 360;                              // 30 * 12
-    const monthlyPmt   = loanAmt > 0 && r > 0
-      ? loanAmt * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1)
-      : loanAmt / n;
-    const annualDebt   = monthlyPmt * 12;
-    const leveredCF    = noi - annualDebt;
-    const cashOnCash   = downPayment > 0 ? leveredCF / downPayment * 100 : 0;
+    const downPayment = price * 0.20;
+    const leveredCF   = noi - annualDebt;
+    const cashOnCash  = downPayment > 0 ? leveredCF / downPayment * 100 : 0;
 
-    document.getElementById('cap-gross-'  + key).textContent = fmtUSD(grossAnnual) + '/yr';
-    document.getElementById('cap-noi-'    + key).textContent = fmtUSD(noi) + '/yr';
-    document.getElementById('cap-down-'   + key).textContent = fmtUSD(downPayment);
-    document.getElementById('cap-debt-'   + key).textContent = fmtUSD(annualDebt) + '/yr';
-    document.getElementById('cap-lcf-'    + key).textContent = fmtUSD(leveredCF) + '/yr';
+    document.getElementById('cap-gross-' + key).textContent = fmtUSD(grossAnnual) + '/yr';
+    document.getElementById('cap-noi-'   + key).textContent = fmtUSD(noi) + '/yr';
+    document.getElementById('cap-down-'  + key).textContent = fmtUSD(downPayment);
+    document.getElementById('cap-lcf-'   + key).textContent = fmtUSD(leveredCF) + '/yr';
 
     const rateEl = document.getElementById('cap-rate-' + key);
     rateEl.textContent = capRate.toFixed(2) + '%';
@@ -1666,7 +1674,7 @@
           <div class="cap-field">
             <label>Purchase Price ($)</label>
             <input id="cap-price-${city.key}" type="number" min="0" step="10000"
-              value="${city.price}" oninput="calcCapRate('${city.key}')">
+              value="${city.price}" oninput="updateDebtService('${city.key}'); calcCapRate('${city.key}')">
           </div>
           <div class="cap-field">
             <label>Monthly Rent ($)</label>
@@ -1682,6 +1690,16 @@
             <label>Other Exp. (% gross rent)</label>
             <input id="cap-other-${city.key}" type="number" min="0" max="100" step="1"
               value="${city.otherExp}" oninput="calcCapRate('${city.key}')">
+          </div>
+          <div class="cap-field">
+            <label>Mortgage Rate (% / yr)</label>
+            <input id="cap-mrate-${city.key}" type="number" min="0" max="30" step="0.05"
+              value="${currentMortgageRate.toFixed(2)}" oninput="updateDebtService('${city.key}'); calcCapRate('${city.key}')">
+          </div>
+          <div class="cap-field">
+            <label>Annual Debt Service ($)</label>
+            <input id="cap-debt-${city.key}" type="number" min="0" step="100"
+              value="0" oninput="calcCapRate('${city.key}')">
           </div>
         </div>
         <hr class="cap-divider">
@@ -1699,10 +1717,6 @@
             <span class="cap-output-val" id="cap-down-${city.key}">—</span>
           </div>
           <div class="cap-output-row">
-            <span class="cap-output-label">Annual Debt Service</span>
-            <span class="cap-output-val" id="cap-debt-${city.key}">—</span>
-          </div>
-          <div class="cap-output-row">
             <span class="cap-output-label">Levered Cash Flow</span>
             <span class="cap-output-val" id="cap-lcf-${city.key}">—</span>
           </div>
@@ -1718,6 +1732,7 @@
           </div>
         </div>`;
       row.appendChild(card);
+      updateDebtService(city.key);
       calcCapRate(city.key);
     });
     document.getElementById('capRateSectionTitle').style.display = '';
