@@ -32,6 +32,13 @@ SERIES = {
     'hpi_dal':  {'id': 'DAXRSA',         'start': 2000, 'yoy': True},            # S&P/Case-Shiller Dallas
     'hpi_atl':  {'id': 'ATXRSA',         'start': 1991, 'yoy': True},            # S&P/Case-Shiller Atlanta
     'hpi_aus':  {'id': 'ATNHPIUS12420Q', 'start': 1990, 'yoy': True, 'freq': 'q'},  # FHFA Austin (quarterly)
+    # City-level CPI for Rent of Primary Residence (index, 1982-84=100)
+    'rent_sf':  {'id': 'CUUSA422SAH1', 'start': 1990, 'yoy': False},  # SF-Oakland area
+    'rent_sd':  {'id': 'CUUSA421SAH1', 'start': 1990, 'yoy': False},  # LA area (proxy for San Diego)
+    'rent_sea': {'id': 'CUUSA423SAH1', 'start': 1990, 'yoy': False},  # Seattle-Tacoma area
+    'rent_dal': {'id': 'CUUSA316SAH1', 'start': 1990, 'yoy': False},  # Dallas-Fort Worth area
+    'rent_atl': {'id': 'CUUSA319SAH1', 'start': 1990, 'yoy': False},  # Atlanta area
+    'rent_aus': {'id': 'CUUR0300SAH1', 'start': 1990, 'yoy': False},  # South urban (proxy for Austin)
 }
 
 def fred_fetch(series_id, start_year, freq='m'):
@@ -88,14 +95,18 @@ output = {'fetched_at': datetime.now().strftime('%B %d, %Y')}
 
 for key, cfg in SERIES.items():
     print(f'  {key.upper()} ({cfg["id"]})...', end=' ', flush=True)
-    raw = fred_fetch(cfg['id'], cfg['start'], cfg.get('freq', 'm'))
-    if cfg.get('jan_yoy'):
-        output[key] = yoy_january(raw)
-    elif cfg['yoy']:
-        output[key] = yoy_monthly(raw)
-    else:
-        output[key] = raw
-    print(f'{output[key][0]["date"]}\u2013{output[key][-1]["date"]}  ({len(output[key])} records)')
+    try:
+        raw = fred_fetch(cfg['id'], cfg['start'], cfg.get('freq', 'm'))
+        if cfg.get('jan_yoy'):
+            output[key] = yoy_january(raw)
+        elif cfg['yoy']:
+            output[key] = yoy_monthly(raw)
+        else:
+            output[key] = raw
+        print(f'{output[key][0]["date"]}–{output[key][-1]["date"]}  ({len(output[key])} records)')
+    except Exception as exc:
+        print(f'SKIPPED — {exc}')
+        output[key] = []
 
 with open('fred_data.json', 'w') as f:
     json.dump(output, f)
@@ -107,4 +118,13 @@ print(f'  HPI:      {output["hpi"][0]["date"]}\u2013{output["hpi"][-1]["date"]}'
 print(f'  NASDAQ:   {output["nasdaq"][0]["date"]}\u2013{output["nasdaq"][-1]["date"]}')
 for city_key in ('hpi_sf', 'hpi_sd', 'hpi_sea', 'hpi_dal', 'hpi_atl', 'hpi_aus'):
     d = output[city_key]
-    print(f'  {city_key.upper():10s} {d[0]["date"]}\u2013{d[-1]["date"]}  ({len(d)} records)')
+    if d:
+        print(f'  {city_key.upper():10s} {d[0]["date"]}\u2013{d[-1]["date"]}  ({len(d)} records)')
+    else:
+        print(f'  {city_key.upper():10s} (no data)')
+for rent_key in ('rent_sf', 'rent_sd', 'rent_sea', 'rent_dal', 'rent_atl', 'rent_aus'):
+    d = output.get(rent_key, [])
+    if d:
+        print(f'  {rent_key.upper():10s} {d[0]["date"]}\u2013{d[-1]["date"]}  ({len(d)} records)')
+    else:
+        print(f'  {rent_key.upper():10s} (no data)')

@@ -263,6 +263,150 @@
     /* ── Loading overlay ── */
     #loadingWrap { text-align: center; }
     #loadingWrap .load-text { font-size: 0.82rem; color: var(--muted); margin-top: 10px; }
+
+    /* ── Cap Rate Calculator ── */
+    .cap-section-title {
+      width: 100%;
+      max-width: 1020px;
+    }
+    .cap-section-title h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .cap-section-title p {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .cap-row {
+      width: 100%;
+      max-width: 1020px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 800px) { .cap-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .cap-row { grid-template-columns: 1fr; } }
+
+    .cap-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cap-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 14px 14px 0 0;
+    }
+    .cap-card[data-color="sf"]::before  { background: #4fc3f7; }
+    .cap-card[data-color="sd"]::before  { background: #ff9f43; }
+    .cap-card[data-color="sea"]::before { background: #6bcb77; }
+    .cap-card[data-color="dal"]::before { background: #ffd166; }
+    .cap-card[data-color="atl"]::before { background: #c77dff; }
+    .cap-card[data-color="aus"]::before { background: #ff6b6b; }
+    .cap-card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .cap-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .cap-field {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .cap-field label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .cap-field input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.78rem;
+      padding: 4px 8px;
+      width: 110px;
+      text-align: right;
+      transition: border-color 0.15s;
+      -moz-appearance: textfield;
+    }
+    .cap-field input::-webkit-outer-spin-button,
+    .cap-field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .cap-field input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .cap-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2px 0;
+    }
+    .cap-output {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .cap-output-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .cap-output-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+    .cap-output-val {
+      font-size: 0.78rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .cap-rate-display {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .cap-rate-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .cap-rate-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      transition: color 0.2s;
+    }
+    .cap-rate-value.good  { color: #6bcb77; }
+    .cap-rate-value.fair  { color: #ffd166; }
+    .cap-rate-value.poor  { color: #ff6b6b; }
+    .cap-note {
+      font-size: 0.65rem;
+      color: #3d4460;
+      text-align: center;
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
@@ -397,6 +541,64 @@
     <canvas id="cityChart"></canvas>
   </div>
 
+  <!-- City Rental Price Index Chart -->
+  <div class="chart-panel" id="rentChartPanel" style="display:none">
+    <div style="margin-bottom:18px;">
+      <div style="font-size:1.05rem;font-weight:700;color:var(--text);margin-bottom:4px;">City Rental Price Index</div>
+      <div style="font-size:0.8rem;color:var(--muted);">BLS CPI &mdash; Rent of Primary Residence &nbsp;&middot;&nbsp; Index (1982&ndash;84 = 100) &nbsp;&middot;&nbsp; San Diego proxy: LA area &nbsp;&middot;&nbsp; Austin proxy: South urban</div>
+    </div>
+
+    <div class="controls">
+      <div class="preset-group" id="rentPresetGroup">
+        <button class="preset-btn" onclick="setRentPreset(10)">10Y</button>
+        <button class="preset-btn" onclick="setRentPreset(20)">20Y</button>
+        <button class="preset-btn" onclick="setRentPreset(30)">30Y</button>
+        <button class="preset-btn" onclick="setRentPreset(0)">All</button>
+      </div>
+      <div class="range-label">Range: <b id="rentRangeDisplay">&mdash;</b></div>
+    </div>
+
+    <div class="slider-wrap">
+      <div id="rentYearSlider"></div>
+    </div>
+
+    <div class="legend-toggles">
+      <button class="toggle-btn" id="rtog-0" onclick="toggleRent(0)">
+        <span class="dot" style="background:#4fc3f7"></span> San Francisco
+      </button>
+      <button class="toggle-btn" id="rtog-1" onclick="toggleRent(1)">
+        <span class="dot" style="background:#ff9f43"></span> San Diego (LA proxy)
+      </button>
+      <button class="toggle-btn" id="rtog-2" onclick="toggleRent(2)">
+        <span class="dot" style="background:#6bcb77"></span> Seattle
+      </button>
+      <button class="toggle-btn" id="rtog-3" onclick="toggleRent(3)">
+        <span class="dot" style="background:#ffd166"></span> Dallas
+      </button>
+      <button class="toggle-btn" id="rtog-4" onclick="toggleRent(4)">
+        <span class="dot" style="background:#c77dff"></span> Atlanta
+      </button>
+      <button class="toggle-btn" id="rtog-5" onclick="toggleRent(5)">
+        <span class="dot" style="background:#ff6b6b"></span> Austin (South proxy)
+      </button>
+    </div>
+
+    <canvas id="rentChart"></canvas>
+  </div>
+
+  <!-- Cap Rate Calculator -->
+  <div class="cap-section-title" id="capRateSectionTitle" style="display:none">
+    <h2>Cap Rate Calculator &mdash; Single-Family Home</h2>
+    <p>Edit any field to recalculate. Cap Rate = NOI &divide; Purchase Price &times; 100&nbsp;&nbsp;&middot;&nbsp;&nbsp;NOI = Gross Annual Rent &minus; Property Tax &minus; Other Expenses</p>
+  </div>
+  <div class="cap-row" id="capRateRow" style="display:none"></div>
+  <div class="cap-section-title" id="capRateNote" style="display:none">
+    <p class="cap-note" style="font-size:0.72rem;color:var(--muted);">
+      Default prices &amp; rents are approximate 2024&ndash;25 market estimates. &nbsp;
+      &gt;&nbsp;6% = generally good &nbsp;&middot;&nbsp; 4&ndash;6% = marginal &nbsp;&middot;&nbsp; &lt;&nbsp;4% = low yield for a pure investment.
+    </p>
+  </div>
+
   <div class="footer">
     <a href="https://fred.stlouisfed.org/series/CSUSHPISA" target="_blank" rel="noopener">S&amp;P/Case-Shiller HPI</a>
     <span class="footer-sep">·</span>
@@ -520,6 +722,24 @@
         initCitySlider();
         buildCityChart();
       }
+
+      // City Rental Price chart
+      rentStore = {
+        rent_sf:  data.rent_sf  || [],
+        rent_sd:  data.rent_sd  || [],
+        rent_sea: data.rent_sea || [],
+        rent_dal: data.rent_dal || [],
+        rent_atl: data.rent_atl || [],
+        rent_aus: data.rent_aus || [],
+      };
+      if (Object.values(rentStore).some(arr => arr.length > 0)) {
+        document.getElementById('rentChartPanel').style.display = 'block';
+        initRentSlider();
+        buildRentChart();
+      }
+
+      // Cap Rate Calculator (always shown, fully client-side)
+      buildCapRateCards();
     } catch {
       document.getElementById('loadingWrap').style.display = 'none';
       document.getElementById('errorMsg').style.display = 'block';
@@ -1092,6 +1312,362 @@
     };
     window.addEventListener('mouseup', endCityPan);
     window.addEventListener('mouseleave', endCityPan);
+  }
+
+  // ── City Rental Price Index Chart ─────────────────────────────────────────
+  const RENT_CITIES = [
+    { key: 'rent_sf',  label: 'San Francisco',       color: '#4fc3f7', bg: 'rgba(79,195,247,0.06)'   },
+    { key: 'rent_sd',  label: 'San Diego (LA proxy)', color: '#ff9f43', bg: 'rgba(255,159,67,0.06)'   },
+    { key: 'rent_sea', label: 'Seattle',              color: '#6bcb77', bg: 'rgba(107,203,119,0.06)'  },
+    { key: 'rent_dal', label: 'Dallas',               color: '#ffd166', bg: 'rgba(255,209,102,0.06)'  },
+    { key: 'rent_atl', label: 'Atlanta',              color: '#c77dff', bg: 'rgba(199,125,255,0.06)'  },
+    { key: 'rent_aus', label: 'Austin (South proxy)', color: '#ff6b6b', bg: 'rgba(255,107,107,0.06)'  },
+  ];
+
+  let rentStore = {};
+  let rentChart = null;
+  let rentRangeStart, rentRangeEnd, rentDataMin, rentDataMax;
+  const rentHidden = new Set();
+  let _rentPanActive = false;
+
+  function filteredRent(series) {
+    return series.filter(d => {
+      const y = parseInt(d.date);
+      return y >= rentRangeStart && y <= rentRangeEnd;
+    });
+  }
+
+  function initRentSlider() {
+    const allYears = RENT_CITIES.flatMap(c => (rentStore[c.key] || []).map(d => parseInt(d.date)));
+    if (!allYears.length) return;
+    rentDataMin = Math.min(...allYears);
+    rentDataMax = Math.max(...allYears);
+    rentRangeStart = rentDataMin; rentRangeEnd = rentDataMax;
+
+    const el = document.getElementById('rentYearSlider');
+    noUiSlider.create(el, {
+      start: [rentDataMin, rentDataMax], connect: true, step: 1,
+      range: { min: rentDataMin, max: rentDataMax },
+      tooltips: [{ to: v => Math.round(v).toString() }, { to: v => Math.round(v).toString() }],
+      format: { to: v => Math.round(v), from: Number },
+    });
+    el.noUiSlider.on('update', (vals) => {
+      rentRangeStart = +vals[0]; rentRangeEnd = +vals[1];
+      document.getElementById('rentRangeDisplay').textContent = rentRangeStart + '\u2013' + rentRangeEnd;
+      syncRentPresets();
+      if (rentChart && !_rentPanActive) refreshRentChart();
+    });
+    document.getElementById('rentRangeDisplay').textContent = rentDataMin + '\u2013' + rentDataMax;
+    syncRentPresets();
+  }
+
+  function setRentPreset(years) {
+    const slider = document.getElementById('rentYearSlider').noUiSlider;
+    const start = years === 0 ? rentDataMin : Math.max(rentDataMin, rentDataMax - years);
+    slider.set([start, rentDataMax]);
+  }
+
+  function syncRentPresets() {
+    const span = rentDataMax - rentRangeStart;
+    const btns = document.querySelectorAll('#rentPresetGroup .preset-btn');
+    const presets = [10, 20, 30, 0];
+    btns.forEach((btn, i) => {
+      const p = presets[i];
+      const match = p === 0
+        ? rentRangeStart === rentDataMin
+        : (span === p && rentRangeStart === rentDataMax - p);
+      btn.classList.toggle('active', match);
+    });
+  }
+
+  function toggleRent(idx) {
+    const btn = document.getElementById('rtog-' + idx);
+    if (rentHidden.has(idx)) {
+      rentHidden.delete(idx);
+      btn.classList.remove('hidden-series');
+    } else {
+      rentHidden.add(idx);
+      btn.classList.add('hidden-series');
+    }
+    if (rentChart) refreshRentChart();
+  }
+
+  function buildRentChart() {
+    if (rentChart) { rentChart.destroy(); rentChart = null; }
+    const ctx = document.getElementById('rentChart').getContext('2d');
+    rentChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.9,
+        animation: { duration: 200 },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(12,15,28,0.88)',
+            titleColor: '#e4e6f0',
+            bodyColor: '#b0b8d8',
+            borderColor: 'rgba(255,255,255,0.12)',
+            borderWidth: 1,
+            padding: 16,
+            cornerRadius: 10,
+            boxWidth: 10,
+            boxHeight: 10,
+            usePointStyle: false,
+            titleFont: { size: 13, weight: '700' },
+            bodyFont: { size: 12.5 },
+            itemSort: () => 0,
+            callbacks: {
+              title: items => fmtDate(items[0]?.label || ''),
+              label: c => c.parsed.y !== null
+                ? '  ' + c.dataset.label + ':  ' + c.parsed.y.toFixed(1)
+                : '  ' + c.dataset.label + ':  N/A',
+              labelColor: c => ({ borderColor: c.dataset.borderColor, backgroundColor: c.dataset.borderColor }),
+            },
+          },
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: '#8890b0', autoSkip: false, maxRotation: 45,
+              font: { size: 12, weight: '500' },
+              callback: function(val) {
+                const label = this.getLabelForValue(val);
+                if (!label || !label.includes('-')) return label;
+                const [year, month] = label.split('-');
+                const allLabels = this.chart.data.labels;
+                const spanYears = allLabels && allLabels.length > 1
+                  ? parseInt(allLabels[allLabels.length - 1]) - parseInt(allLabels[0]) : 0;
+                if (spanYears > 8) {
+                  if (month !== '01') return null;
+                  const step = spanYears >= 30 ? 2 : 1;
+                  return parseInt(year) % step === 0 ? year : null;
+                } else {
+                  return parseInt(month) % 3 === 1 ? MONTH_NAMES[parseInt(month) - 1] + ' ' + year : null;
+                }
+              },
+            },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            border: { color: '#3a4060', display: true },
+          },
+          y: {
+            ticks: {
+              color: '#8890b0',
+              font: { size: 12, weight: '500' },
+              callback: v => v.toFixed(0),
+            },
+            grid: {
+              color: 'rgba(255,255,255,0.07)',
+              lineWidth: 1,
+            },
+            border: { color: '#3a4060', display: true },
+            title: {
+              display: true,
+              text: 'CPI Rent Index (1982–84 = 100)',
+              color: '#6b7194',
+              font: { size: 11 },
+            },
+          },
+        },
+      },
+    });
+    refreshRentChart();
+    attachRentCanvasEvents();
+  }
+
+  function refreshRentChart(noAnim) {
+    if (!rentChart) return;
+    const filtered = RENT_CITIES.map(c => filteredRent(rentStore[c.key] || []));
+    const dates = [...new Set(filtered.flatMap(arr => arr.map(d => d.date)))].sort();
+    rentChart._cx = null;
+    rentChart.data.labels = dates;
+    rentChart.data.datasets = RENT_CITIES.map((c, i) => {
+      const map = new Map(filtered[i].map(d => [d.date, d.value]));
+      return {
+        label: c.label,
+        data: dates.map(d => map.get(d) ?? null),
+        hidden: rentHidden.has(i),
+        borderColor: c.color,
+        backgroundColor: c.bg,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        tension: 0.2,
+        fill: false,
+        spanGaps: true,
+      };
+    });
+    rentChart.update(noAnim ? 'none' : undefined);
+  }
+
+  function attachRentCanvasEvents() {
+    const canvas = document.getElementById('rentChart');
+    canvas.style.cursor = 'grab';
+    let pan = null;
+
+    canvas.addEventListener('wheel', e => {
+      if (!rentChart || !rentChart.chartArea) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const { left, right } = rentChart.chartArea;
+      if (mx < left || mx > right) return;
+      e.preventDefault();
+      const f = (mx - left) / (right - left);
+      const span = rentRangeEnd - rentRangeStart;
+      const pivot = rentRangeStart + f * span;
+      const delta = Math.max(1, Math.round(span * 0.15));
+      const newSpan = e.deltaY > 0
+        ? Math.min(rentDataMax - rentDataMin, span + delta)
+        : Math.max(1, span - delta);
+      const ns = Math.max(rentDataMin, Math.min(rentDataMax - newSpan, Math.round(pivot - f * newSpan)));
+      rentRangeStart = ns;
+      rentRangeEnd = ns + newSpan;
+      document.getElementById('rentRangeDisplay').textContent = rentRangeStart + '\u2013' + rentRangeEnd;
+      syncRentPresets();
+      refreshRentChart(true);
+      _rentPanActive = true;
+      document.getElementById('rentYearSlider').noUiSlider.set([rentRangeStart, rentRangeEnd]);
+      _rentPanActive = false;
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', e => {
+      if (!rentChart || !rentChart.chartArea) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const { left, right } = rentChart.chartArea;
+      if (mx < left || mx > right) return;
+      const allVis = RENT_CITIES.flatMap(c => filteredRent(rentStore[c.key] || []).map(d => d.value)).filter(v => v != null);
+      if (allVis.length) {
+        const yMin = Math.min(...allVis);
+        const yMax = Math.max(...allVis);
+        const pad = (yMax - yMin) * 0.1;
+        rentChart.options.scales.y.min = Math.floor(yMin - pad);
+        rentChart.options.scales.y.max = Math.ceil(yMax + pad);
+      }
+      _rentPanActive = true;
+      pan = { startX: e.clientX, rs: rentRangeStart, re: rentRangeEnd };
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!pan || !rentChart || !rentChart.chartArea) return;
+      const dx = e.clientX - pan.startX;
+      const w = rentChart.chartArea.right - rentChart.chartArea.left;
+      const span = pan.re - pan.rs;
+      const delta = Math.round((dx / w) * span);
+      const ns = Math.max(rentDataMin, Math.min(rentDataMax - span, pan.rs - delta));
+      const ne = ns + span;
+      if (ns === rentRangeStart) return;
+      rentRangeStart = ns; rentRangeEnd = ne;
+      document.getElementById('rentRangeDisplay').textContent = rentRangeStart + '\u2013' + rentRangeEnd;
+      syncRentPresets();
+      refreshRentChart(true);
+    });
+
+    const endRentPan = () => {
+      if (!pan) return;
+      pan = null;
+      _rentPanActive = false;
+      canvas.style.cursor = 'grab';
+      rentChart.options.scales.y.min = undefined;
+      rentChart.options.scales.y.max = undefined;
+      document.getElementById('rentYearSlider').noUiSlider.set([rentRangeStart, rentRangeEnd]);
+    };
+    window.addEventListener('mouseup', endRentPan);
+    window.addEventListener('mouseleave', endRentPan);
+  }
+
+  // ── Cap Rate Calculator ────────────────────────────────────────────────────
+  const CAP_CITIES_CALC = [
+    { key: 'sf',  label: 'San Francisco', color: '#4fc3f7', price: 1300000, rent: 3500, propTax: 1.20, otherExp: 18 },
+    { key: 'sd',  label: 'San Diego',     color: '#ff9f43', price: 875000,  rent: 2900, propTax: 1.10, otherExp: 18 },
+    { key: 'sea', label: 'Seattle',       color: '#6bcb77', price: 750000,  rent: 2200, propTax: 1.00, otherExp: 18 },
+    { key: 'dal', label: 'Dallas',        color: '#ffd166', price: 380000,  rent: 1800, propTax: 2.10, otherExp: 18 },
+    { key: 'atl', label: 'Atlanta',       color: '#c77dff', price: 340000,  rent: 1700, propTax: 1.00, otherExp: 18 },
+    { key: 'aus', label: 'Austin',        color: '#ff6b6b', price: 490000,  rent: 1950, propTax: 1.80, otherExp: 18 },
+  ];
+
+  function fmtUSD(n) {
+    return '$' + Math.round(n).toLocaleString('en-US');
+  }
+
+  function calcCapRate(key) {
+    const city = CAP_CITIES_CALC.find(c => c.key === key);
+    if (!city) return;
+    const price    = parseFloat(document.getElementById('cap-price-' + key).value) || 0;
+    const rent     = parseFloat(document.getElementById('cap-rent-'  + key).value) || 0;
+    const propTax  = parseFloat(document.getElementById('cap-tax-'   + key).value) || 0;
+    const otherExp = parseFloat(document.getElementById('cap-other-' + key).value) || 0;
+
+    const grossAnnual  = rent * 12;
+    const taxAmt       = price * propTax / 100;
+    const otherAmt     = grossAnnual * otherExp / 100;
+    const noi          = grossAnnual - taxAmt - otherAmt;
+    const capRate      = price > 0 ? noi / price * 100 : 0;
+
+    document.getElementById('cap-gross-'   + key).textContent = fmtUSD(grossAnnual) + '/yr';
+    document.getElementById('cap-noi-'     + key).textContent = fmtUSD(noi) + '/yr';
+    const rateEl = document.getElementById('cap-rate-' + key);
+    rateEl.textContent = capRate.toFixed(2) + '%';
+    rateEl.className = 'cap-rate-value ' + (capRate >= 6 ? 'good' : capRate >= 4 ? 'fair' : 'poor');
+  }
+
+  function buildCapRateCards() {
+    const row = document.getElementById('capRateRow');
+    row.innerHTML = '';
+    CAP_CITIES_CALC.forEach(city => {
+      const card = document.createElement('div');
+      card.className = 'cap-card';
+      card.dataset.color = city.key;
+      card.innerHTML = `
+        <div class="cap-card-title">${city.label}</div>
+        <div class="cap-inputs">
+          <div class="cap-field">
+            <label>Purchase Price ($)</label>
+            <input id="cap-price-${city.key}" type="number" min="0" step="10000"
+              value="${city.price}" oninput="calcCapRate('${city.key}')">
+          </div>
+          <div class="cap-field">
+            <label>Monthly Rent ($)</label>
+            <input id="cap-rent-${city.key}" type="number" min="0" step="50"
+              value="${city.rent}" oninput="calcCapRate('${city.key}')">
+          </div>
+          <div class="cap-field">
+            <label>Prop. Tax (% / yr)</label>
+            <input id="cap-tax-${city.key}" type="number" min="0" max="10" step="0.1"
+              value="${city.propTax}" oninput="calcCapRate('${city.key}')">
+          </div>
+          <div class="cap-field">
+            <label>Other Exp. (% gross rent)</label>
+            <input id="cap-other-${city.key}" type="number" min="0" max="100" step="1"
+              value="${city.otherExp}" oninput="calcCapRate('${city.key}')">
+          </div>
+        </div>
+        <hr class="cap-divider">
+        <div class="cap-output">
+          <div class="cap-output-row">
+            <span class="cap-output-label">Gross Annual Rent</span>
+            <span class="cap-output-val" id="cap-gross-${city.key}">—</span>
+          </div>
+          <div class="cap-output-row">
+            <span class="cap-output-label">Net Operating Income</span>
+            <span class="cap-output-val" id="cap-noi-${city.key}">—</span>
+          </div>
+        </div>
+        <div class="cap-rate-display">
+          <span class="cap-rate-label">Cap Rate</span>
+          <span class="cap-rate-value poor" id="cap-rate-${city.key}">—</span>
+        </div>`;
+      row.appendChild(card);
+      calcCapRate(city.key);
+    });
+    document.getElementById('capRateSectionTitle').style.display = '';
+    document.getElementById('capRateRow').style.display = '';
+    document.getElementById('capRateNote').style.display = '';
   }
 </script>
 </body>
