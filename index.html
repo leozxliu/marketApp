@@ -377,23 +377,30 @@
       color: var(--text);
       font-weight: 600;
     }
-    .cap-rate-display {
+    .cap-metrics-row {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-end;
       margin-top: 4px;
       padding-top: 8px;
       border-top: 1px solid var(--border);
+      gap: 8px;
     }
+    .cap-metric {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .cap-metric:last-child { align-items: flex-end; }
     .cap-rate-label {
-      font-size: 0.75rem;
+      font-size: 0.68rem;
       color: var(--muted);
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.03em;
     }
     .cap-rate-value {
-      font-size: 1.5rem;
+      font-size: 1.35rem;
       font-weight: 700;
       letter-spacing: -0.02em;
       transition: color 0.2s;
@@ -588,14 +595,20 @@
 
   <!-- Cap Rate Calculator -->
   <div class="cap-section-title" id="capRateSectionTitle" style="display:none">
-    <h2>Cap Rate Calculator &mdash; Single-Family Home</h2>
-    <p>Edit any field to recalculate. Cap Rate = NOI &divide; Purchase Price &times; 100&nbsp;&nbsp;&middot;&nbsp;&nbsp;NOI = Gross Annual Rent &minus; Property Tax &minus; Other Expenses</p>
+    <h2>Cap Rate &amp; Cash-on-Cash Calculator &mdash; Single-Family Home</h2>
+    <p>
+      Assumes <b>20% down</b>, 80% financed at the current 30-yr fixed rate
+      (<span id="capMortgageRateDisplay">—</span>%).
+      &nbsp;&middot;&nbsp; Cap Rate = NOI &divide; Price &nbsp;&middot;&nbsp;
+      Cash-on-Cash = (NOI &minus; Annual Debt Service) &divide; Down Payment
+    </p>
   </div>
   <div class="cap-row" id="capRateRow" style="display:none"></div>
   <div class="cap-section-title" id="capRateNote" style="display:none">
     <p class="cap-note" style="font-size:0.72rem;color:var(--muted);">
       Default prices &amp; rents are approximate 2024&ndash;25 market estimates. &nbsp;
-      &gt;&nbsp;6% = generally good &nbsp;&middot;&nbsp; 4&ndash;6% = marginal &nbsp;&middot;&nbsp; &lt;&nbsp;4% = low yield for a pure investment.
+      Cap Rate &gt;&nbsp;6% = generally good &nbsp;&middot;&nbsp; 4&ndash;6% = marginal &nbsp;&middot;&nbsp; &lt;&nbsp;4% = low yield.
+      &nbsp;&nbsp;Cash-on-Cash &gt;&nbsp;8% = strong &nbsp;&middot;&nbsp; 4&ndash;8% = fair &nbsp;&middot;&nbsp; &lt;&nbsp;4% / negative = cash-flow negative.
     </p>
   </div>
 
@@ -738,7 +751,9 @@
         buildRentChart();
       }
 
-      // Cap Rate Calculator (always shown, fully client-side)
+      // Cap Rate Calculator
+      currentMortgageRate = last(store.mortgage)?.value ?? 6.8;
+      document.getElementById('capMortgageRateDisplay').textContent = currentMortgageRate.toFixed(2);
       buildCapRateCards();
     } catch {
       document.getElementById('loadingWrap').style.display = 'none';
@@ -1582,6 +1597,8 @@
   }
 
   // ── Cap Rate Calculator ────────────────────────────────────────────────────
+  let currentMortgageRate = 6.8;   // updated from FRED data on load
+
   const CAP_CITIES_CALC = [
     { key: 'sf',  label: 'San Francisco', color: '#4fc3f7', price: 1300000, rent: 3500, propTax: 1.20, otherExp: 18 },
     { key: 'sd',  label: 'San Diego',     color: '#ff9f43', price: 875000,  rent: 2900, propTax: 1.10, otherExp: 18 },
@@ -1603,17 +1620,37 @@
     const propTax  = parseFloat(document.getElementById('cap-tax-'   + key).value) || 0;
     const otherExp = parseFloat(document.getElementById('cap-other-' + key).value) || 0;
 
-    const grossAnnual  = rent * 12;
-    const taxAmt       = price * propTax / 100;
-    const otherAmt     = grossAnnual * otherExp / 100;
-    const noi          = grossAnnual - taxAmt - otherAmt;
-    const capRate      = price > 0 ? noi / price * 100 : 0;
+    const grossAnnual = rent * 12;
+    const taxAmt      = price * propTax / 100;
+    const otherAmt    = grossAnnual * otherExp / 100;
+    const noi         = grossAnnual - taxAmt - otherAmt;
+    const capRate     = price > 0 ? noi / price * 100 : 0;
 
-    document.getElementById('cap-gross-'   + key).textContent = fmtUSD(grossAnnual) + '/yr';
-    document.getElementById('cap-noi-'     + key).textContent = fmtUSD(noi) + '/yr';
+    // Financing: 20% down, 80% loan, 30-yr fixed at currentMortgageRate
+    const downPayment  = price * 0.20;
+    const loanAmt      = price * 0.80;
+    const r            = currentMortgageRate / 100 / 12;  // monthly rate
+    const n            = 360;                              // 30 * 12
+    const monthlyPmt   = loanAmt > 0 && r > 0
+      ? loanAmt * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1)
+      : loanAmt / n;
+    const annualDebt   = monthlyPmt * 12;
+    const leveredCF    = noi - annualDebt;
+    const cashOnCash   = downPayment > 0 ? leveredCF / downPayment * 100 : 0;
+
+    document.getElementById('cap-gross-'  + key).textContent = fmtUSD(grossAnnual) + '/yr';
+    document.getElementById('cap-noi-'    + key).textContent = fmtUSD(noi) + '/yr';
+    document.getElementById('cap-down-'   + key).textContent = fmtUSD(downPayment);
+    document.getElementById('cap-debt-'   + key).textContent = fmtUSD(annualDebt) + '/yr';
+    document.getElementById('cap-lcf-'    + key).textContent = fmtUSD(leveredCF) + '/yr';
+
     const rateEl = document.getElementById('cap-rate-' + key);
     rateEl.textContent = capRate.toFixed(2) + '%';
     rateEl.className = 'cap-rate-value ' + (capRate >= 6 ? 'good' : capRate >= 4 ? 'fair' : 'poor');
+
+    const cocEl = document.getElementById('cap-coc-' + key);
+    cocEl.textContent = cashOnCash.toFixed(2) + '%';
+    cocEl.className = 'cap-rate-value ' + (cashOnCash >= 8 ? 'good' : cashOnCash >= 4 ? 'fair' : 'poor');
   }
 
   function buildCapRateCards() {
@@ -1654,13 +1691,31 @@
             <span class="cap-output-val" id="cap-gross-${city.key}">—</span>
           </div>
           <div class="cap-output-row">
-            <span class="cap-output-label">Net Operating Income</span>
+            <span class="cap-output-label">Net Operating Income (NOI)</span>
             <span class="cap-output-val" id="cap-noi-${city.key}">—</span>
           </div>
+          <div class="cap-output-row">
+            <span class="cap-output-label">Down Payment (20%)</span>
+            <span class="cap-output-val" id="cap-down-${city.key}">—</span>
+          </div>
+          <div class="cap-output-row">
+            <span class="cap-output-label">Annual Debt Service</span>
+            <span class="cap-output-val" id="cap-debt-${city.key}">—</span>
+          </div>
+          <div class="cap-output-row">
+            <span class="cap-output-label">Levered Cash Flow</span>
+            <span class="cap-output-val" id="cap-lcf-${city.key}">—</span>
+          </div>
         </div>
-        <div class="cap-rate-display">
-          <span class="cap-rate-label">Cap Rate</span>
-          <span class="cap-rate-value poor" id="cap-rate-${city.key}">—</span>
+        <div class="cap-metrics-row">
+          <div class="cap-metric">
+            <span class="cap-rate-label">Cap Rate</span>
+            <span class="cap-rate-value poor" id="cap-rate-${city.key}">—</span>
+          </div>
+          <div class="cap-metric">
+            <span class="cap-rate-label">Cash-on-Cash</span>
+            <span class="cap-rate-value poor" id="cap-coc-${city.key}">—</span>
+          </div>
         </div>`;
       row.appendChild(card);
       calcCapRate(city.key);
