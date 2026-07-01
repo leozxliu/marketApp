@@ -22,6 +22,7 @@
       --cpi:       #ff6b6b;
       --mrt:       #6bcb77;
       --ndq:       #ffd166;
+      --spx:       #2ec4b6;
     }
 
     body {
@@ -88,12 +89,12 @@
     /* ── Stat cards (inside chart panel) ── */
     .cards {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 10px;
       margin-bottom: 18px;
     }
-    @media (max-width: 800px) { .cards { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 480px) { .cards { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .cards { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 560px) { .cards { grid-template-columns: repeat(2, 1fr); } }
 
     .card {
       background: var(--bg);
@@ -119,6 +120,7 @@
     .card.cpi::before { background: var(--cpi); }
     .card.mrt::before { background: var(--mrt); }
     .card.ndq::before { background: var(--ndq); }
+    .card.spx::before { background: var(--spx); }
     .card:hover { border-color: #353c55; }
 
     .card-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
@@ -127,6 +129,7 @@
     .card.cpi .card-value { color: var(--cpi); }
     .card.mrt .card-value { color: var(--mrt); }
     .card.ndq .card-value { color: var(--ndq); }
+    .card.spx .card-value { color: var(--spx); }
     .card-sub { font-size: 0.7rem; color: var(--muted); }
     .card-year { font-size: 0.68rem; color: #3d4460; position: absolute; top: 10px; right: 12px; }
 
@@ -469,6 +472,12 @@
         <div class="card-value" id="ndqVal">—</div>
         <div class="card-sub">Trailing YoY</div>
       </div>
+      <div class="card spx">
+        <span class="card-year" id="spxYear"></span>
+        <div class="card-label">S&amp;P 500</div>
+        <div class="card-value" id="spxVal">—</div>
+        <div class="card-sub">Trailing YoY</div>
+      </div>
     </div>
     <div class="controls">
       <div class="preset-group" id="presetGroup">
@@ -497,6 +506,9 @@
       </button>
       <button class="toggle-btn" id="tog-sp5" onclick="toggleSeries(3)">
         <span class="dot" style="background:#ffd166"></span> NASDAQ Composite (Trailing YoY)
+      </button>
+      <button class="toggle-btn" id="tog-spx" onclick="toggleSeries(4)">
+        <span class="dot" style="background:#2ec4b6"></span> S&amp;P 500 (Trailing YoY)
       </button>
     </div>
 
@@ -624,6 +636,8 @@
     <span class="footer-sep">·</span>
     <a href="https://fred.stlouisfed.org/series/NASDAQCOM" target="_blank" rel="noopener">NASDAQ Composite</a>
     <span class="footer-sep">·</span>
+    <a href="https://fred.stlouisfed.org/series/SP500" target="_blank" rel="noopener">S&amp;P 500</a>
+    <span class="footer-sep">·</span>
     <span>Source: Federal Reserve Bank of St. Louis (FRED)</span>
   </div>
   <div class="footer" style="margin-top:4px; color:#2e3350;">
@@ -635,7 +649,7 @@
 
 <script>
   let rangeStart, rangeEnd, dataMin, dataMax;
-  let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [] };
+  let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [], sp500: [] };
   let chart = null;
   const hiddenSeries = new Set();
   let _panActive = false;
@@ -710,7 +724,7 @@
       const res = await fetch('fred_data.json');
       if (!res.ok) throw new Error();
       const data = await res.json();
-      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, nasdaq: data.nasdaq || [] };
+      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, nasdaq: data.nasdaq || [], sp500: data.sp500 || [] };
 
       if (data.fetched_at) {
         document.getElementById('fetchedOn').textContent = data.fetched_at;
@@ -780,6 +794,11 @@
     document.getElementById('mrtYear').textContent = fmtDate(m.date);
     document.getElementById('ndqVal').textContent = (n.value > 0 ? '+' : '') + n.value.toFixed(1) + '%';
     document.getElementById('ndqYear').textContent = fmtDate(n.date);
+    const s = last(store.sp500);
+    if (s) {
+      document.getElementById('spxVal').textContent = (s.value > 0 ? '+' : '') + s.value.toFixed(1) + '%';
+      document.getElementById('spxYear').textContent = fmtDate(s.date);
+    }
   }
 
   function initSlider() {
@@ -830,7 +849,7 @@
   }
 
   function toggleSeries(idx) {
-    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt', 'tog-sp5'];
+    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt', 'tog-sp5', 'tog-spx'];
     const btn = document.getElementById(ids[idx]);
     if (hiddenSeries.has(idx)) {
       hiddenSeries.delete(idx);
@@ -926,6 +945,7 @@
     const cpiFilt = filteredSeries(store.cpi);
     const mrtFilt = filteredSeries(store.mortgage);
     const sp5Filt = filteredSeries(store.nasdaq);
+    const spxFilt = filteredSeries(store.sp500);
 
     // Union of all dates in range, sorted
     const dates = [...new Set([
@@ -933,12 +953,14 @@
       ...cpiFilt.map(d => d.date),
       ...mrtFilt.map(d => d.date),
       ...sp5Filt.map(d => d.date),
+      ...spxFilt.map(d => d.date),
     ])].sort();
 
     const hpiMap = new Map(hpiFilt.map(d => [d.date, +d.value.toFixed(2)]));
     const cpiMap = new Map(cpiFilt.map(d => [d.date, +d.value.toFixed(2)]));
     const mrtMap = new Map(mrtFilt.map(d => [d.date, +d.value.toFixed(2)]));
     const sp5Map = new Map(sp5Filt.map(d => [d.date, +d.value.toFixed(2)]));
+    const spxMap = new Map(spxFilt.map(d => [d.date, +d.value.toFixed(2)]));
 
     chart.data.labels = dates;
     // During pan, suppress crosshair
@@ -973,6 +995,14 @@
         data: dates.map(d => sp5Map.get(d) ?? null),
         hidden: hiddenSeries.has(3),
         borderColor: '#ffd166', backgroundColor: 'rgba(255,209,102,0.06)',
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
+        tension: 0.2, fill: false, spanGaps: false,
+      },
+      {
+        label: 'S&P 500 (Trailing YoY)',
+        data: dates.map(d => spxMap.get(d) ?? null),
+        hidden: hiddenSeries.has(4),
+        borderColor: '#2ec4b6', backgroundColor: 'rgba(46,196,182,0.06)',
         borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
         tension: 0.2, fill: false, spanGaps: false,
       },

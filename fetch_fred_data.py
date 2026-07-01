@@ -25,6 +25,7 @@ SERIES = {
     'mortgage': {'id': 'MORTGAGE30US', 'start': 1971, 'yoy': False},
     'hpi':      {'id': 'CSUSHPISA',    'start': 1986, 'yoy': True},  # S&P/Case-Shiller, monthly from Jan 1987
     'nasdaq':   {'id': 'NASDAQCOM',   'start': 1970, 'yoy': True},  # NASDAQ Composite (from 1971)
+    'sp500':    {'id': 'SP500',       'start': 1970, 'yoy': True},  # S&P 500 (FRED limits to trailing ~10yr daily history)
     # City-level HPI (trailing YoY %)
     'hpi_sf':   {'id': 'SFXRSA',         'start': 1990, 'yoy': True},            # S&P/Case-Shiller San Francisco
     'hpi_sd':   {'id': 'SDXRSA',         'start': 1990, 'yoy': True},            # S&P/Case-Shiller San Diego
@@ -117,6 +118,7 @@ print(f'  CPI:      {output["cpi"][0]["date"]}\u2013{output["cpi"][-1]["date"]}'
 print(f'  Mortgage: {output["mortgage"][0]["date"]}\u2013{output["mortgage"][-1]["date"]}')
 print(f'  HPI:      {output["hpi"][0]["date"]}\u2013{output["hpi"][-1]["date"]}')
 print(f'  NASDAQ:   {output["nasdaq"][0]["date"]}\u2013{output["nasdaq"][-1]["date"]}')
+print(f'  S&P 500:  {output["sp500"][0]["date"]}\u2013{output["sp500"][-1]["date"]}')
 for city_key in ('hpi_sf', 'hpi_sd', 'hpi_sea', 'hpi_dal', 'hpi_atl', 'hpi_aus', 'hpi_tal'):
     d = output[city_key]
     if d:
