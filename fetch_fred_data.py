@@ -9,12 +9,19 @@ Local usage:
 GitHub Actions: set FRED_API_KEY as a repository secret.
 """
 
+import csv
+import io
 import json
 import os
 import sys
 import urllib.request
 from datetime import datetime
 from urllib.parse import urlencode
+
+# Monthly S&P 500 level, auto-updated mirror of Robert Shiller's dataset (back to 1871).
+# Used instead of FRED's own SP500 series, which is licensed to only ~10yr of history.
+SP500_HISTORY_URL = 'https://raw.githubusercontent.com/datasets/s-and-p-500/main/data/data.csv'
+SP500_START_YEAR = 1946  # matches CPI, the earliest-starting series on the main chart
 
 API_KEY = os.environ.get('FRED_API_KEY', '')
 if not API_KEY:
@@ -25,7 +32,8 @@ SERIES = {
     'mortgage': {'id': 'MORTGAGE30US', 'start': 1971, 'yoy': False},
     'hpi':      {'id': 'CSUSHPISA',    'start': 1986, 'yoy': True},  # S&P/Case-Shiller, monthly from Jan 1987
     'nasdaq':   {'id': 'NASDAQCOM',   'start': 1970, 'yoy': True},  # NASDAQ Composite (from 1971)
-    'sp500':    {'id': 'SP500',       'start': 1970, 'yoy': True},  # S&P 500 (FRED limits to trailing ~10yr daily history)
+    # S&P 500 is fetched separately below — FRED's own SP500 series is licensed
+    # to only ~10yr of trailing history, far shorter than our other series.
     # City-level HPI (trailing YoY %)
     'hpi_sf':   {'id': 'SFXRSA',         'start': 1990, 'yoy': True},            # S&P/Case-Shiller San Francisco
     'hpi_sd':   {'id': 'SDXRSA',         'start': 1990, 'yoy': True},            # S&P/Case-Shiller San Diego
@@ -62,6 +70,16 @@ def fred_fetch(series_id, start_year, freq='m'):
         {'date': obs['date'][:7], 'value': float(obs['value'])}  # 'YYYY-MM'
         for obs in data['observations']
         if obs['value'] != '.'
+    ]
+
+def fetch_sp500_history(start_year):
+    with urllib.request.urlopen(SP500_HISTORY_URL, timeout=20) as resp:
+        text = resp.read().decode('utf-8')
+    reader = csv.DictReader(io.StringIO(text))
+    return [
+        {'date': row['Date'][:7], 'value': float(row['SP500'])}
+        for row in reader
+        if row['Date'][:4].isdigit() and int(row['Date'][:4]) >= start_year and row['SP500']
     ]
 
 def yoy_monthly(levels):
@@ -109,6 +127,15 @@ for key, cfg in SERIES.items():
     except Exception as exc:
         print(f'SKIPPED — {exc}')
         output[key] = []
+
+print('  SP500 (Shiller/GitHub mirror)...', end=' ', flush=True)
+try:
+    raw = fetch_sp500_history(SP500_START_YEAR)
+    output['sp500'] = yoy_monthly(raw)
+    print(f'{output["sp500"][0]["date"]}–{output["sp500"][-1]["date"]}  ({len(output["sp500"])} records)')
+except Exception as exc:
+    print(f'SKIPPED — {exc}')
+    output['sp500'] = []
 
 with open('fred_data.json', 'w') as f:
     json.dump(output, f)
