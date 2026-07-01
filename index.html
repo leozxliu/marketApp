@@ -507,7 +507,7 @@
   <div class="chart-panel" id="cityChartPanel" style="display:none">
     <div style="margin-bottom:18px;">
       <div style="font-size:1.05rem;font-weight:700;color:var(--text);margin-bottom:4px;">City Housing Price Index</div>
-      <div style="font-size:0.8rem;color:var(--muted);">Trailing YoY % &nbsp;&middot;&nbsp; S&amp;P/Case-Shiller (SA) &nbsp;&middot;&nbsp; Austin via FHFA (quarterly)</div>
+      <div style="font-size:0.8rem;color:var(--muted);">Trailing YoY % &nbsp;&middot;&nbsp; S&amp;P/Case-Shiller (SA) &nbsp;&middot;&nbsp; Austin &amp; Tallahassee via FHFA (quarterly)</div>
     </div>
 
     <div class="controls">
@@ -542,6 +542,9 @@
       </button>
       <button class="toggle-btn" id="ctog-5" onclick="toggleCity(5)">
         <span class="dot" style="background:#ff6b6b"></span> Austin <span style="font-size:0.7em;color:var(--muted);margin-left:3px;">(FHFA)</span>
+      </button>
+      <button class="toggle-btn" id="ctog-6" onclick="toggleCity(6)">
+        <span class="dot" style="background:#ff70a6"></span> Tallahassee <span style="font-size:0.7em;color:var(--muted);margin-left:3px;">(FHFA)</span>
       </button>
     </div>
 
@@ -729,6 +732,7 @@
         hpi_dal: data.hpi_dal || [],
         hpi_atl: data.hpi_atl || [],
         hpi_aus: data.hpi_aus || [],
+        hpi_tal: data.hpi_tal || [],
       };
       if (Object.values(cityStore).some(arr => arr.length > 0)) {
         document.getElementById('cityChartPanel').style.display = 'block';
@@ -1075,6 +1079,7 @@
     { key: 'hpi_dal', label: 'Dallas',         color: '#ffd166', bg: 'rgba(255,209,102,0.06)' },
     { key: 'hpi_atl', label: 'Atlanta',        color: '#c77dff', bg: 'rgba(199,125,255,0.06)' },
     { key: 'hpi_aus', label: 'Austin',         color: '#ff6b6b', bg: 'rgba(255,107,107,0.06)' },
+    { key: 'hpi_tal', label: 'Tallahassee',    color: '#ff70a6', bg: 'rgba(255,112,166,0.06)' },
   ];
 
   let cityStore = {};

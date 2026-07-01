@@ -32,6 +32,7 @@ SERIES = {
     'hpi_dal':  {'id': 'DAXRSA',         'start': 2000, 'yoy': True},            # S&P/Case-Shiller Dallas
     'hpi_atl':  {'id': 'ATXRSA',         'start': 1991, 'yoy': True},            # S&P/Case-Shiller Atlanta
     'hpi_aus':  {'id': 'ATNHPIUS12420Q', 'start': 1990, 'yoy': True, 'freq': 'q'},  # FHFA Austin (quarterly)
+    'hpi_tal':  {'id': 'ATNHPIUS45220Q', 'start': 1990, 'yoy': True, 'freq': 'q'},  # FHFA Tallahassee (quarterly)
     # City-level CPI for Rent of Primary Residence (index, 1982-84=100)
     'rent_sf':  {'id': 'CUUSA422SAH1', 'start': 1990, 'yoy': False},  # SF-Oakland area
     'rent_sd':  {'id': 'CUUSA421SAH1', 'start': 1990, 'yoy': False},  # LA area (proxy for San Diego)
@@ -116,7 +117,7 @@ print(f'  CPI:      {output["cpi"][0]["date"]}\u2013{output["cpi"][-1]["date"]}'
 print(f'  Mortgage: {output["mortgage"][0]["date"]}\u2013{output["mortgage"][-1]["date"]}')
 print(f'  HPI:      {output["hpi"][0]["date"]}\u2013{output["hpi"][-1]["date"]}')
 print(f'  NASDAQ:   {output["nasdaq"][0]["date"]}\u2013{output["nasdaq"][-1]["date"]}')
-for city_key in ('hpi_sf', 'hpi_sd', 'hpi_sea', 'hpi_dal', 'hpi_atl', 'hpi_aus'):
+for city_key in ('hpi_sf', 'hpi_sd', 'hpi_sea', 'hpi_dal', 'hpi_atl', 'hpi_aus', 'hpi_tal'):
     d = output[city_key]
     if d:
         print(f'  {city_key.upper():10s} {d[0]["date"]}\u2013{d[-1]["date"]}  ({len(d)} records)')
