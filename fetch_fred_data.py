@@ -42,13 +42,14 @@ SERIES = {
     'hpi_atl':  {'id': 'ATXRSA',         'start': 1991, 'yoy': True},            # S&P/Case-Shiller Atlanta
     'hpi_aus':  {'id': 'ATNHPIUS12420Q', 'start': 1990, 'yoy': True, 'freq': 'q'},  # FHFA Austin (quarterly)
     'hpi_tal':  {'id': 'ATNHPIUS45220Q', 'start': 1990, 'yoy': True, 'freq': 'q'},  # FHFA Tallahassee (quarterly)
-    # City-level CPI for Rent of Primary Residence (index, 1982-84=100)
-    'rent_sf':  {'id': 'CUUSA422SAH1', 'start': 1990, 'yoy': False},  # SF-Oakland area
-    'rent_sd':  {'id': 'CUUSA421SAH1', 'start': 1990, 'yoy': False},  # LA area (proxy for San Diego)
-    'rent_sea': {'id': 'CUUSA423SAH1', 'start': 1990, 'yoy': False},  # Seattle-Tacoma area
-    'rent_dal': {'id': 'CUUSA316SAH1', 'start': 1990, 'yoy': False},  # Dallas-Fort Worth area
-    'rent_atl': {'id': 'CUUSA319SAH1', 'start': 1990, 'yoy': False},  # Atlanta area
-    'rent_aus': {'id': 'CUUR0300SAH1', 'start': 1990, 'yoy': False},  # South urban (proxy for Austin)
+    # City-level CPI for Rent of Primary Residence (index, 1982-84=100).
+    # Monthly CUUR* series; San Diego is only published semiannually (CUUS*).
+    'rent_sf':  {'id': 'CUURA422SAH1', 'start': 1990, 'yoy': False},               # SF-Oakland area
+    'rent_sd':  {'id': 'CUUSA424SAH1', 'start': 1990, 'yoy': False, 'freq': 'sa'}, # San Diego (semiannual)
+    'rent_sea': {'id': 'CUURA423SAH1', 'start': 1990, 'yoy': False},               # Seattle-Tacoma area
+    'rent_dal': {'id': 'CUURA316SAH1', 'start': 1990, 'yoy': False},               # Dallas-Fort Worth area
+    'rent_atl': {'id': 'CUURA319SAH1', 'start': 1990, 'yoy': False},               # Atlanta area
+    'rent_aus': {'id': 'CUUR0300SAH1', 'start': 1990, 'yoy': False},               # South urban (proxy for Austin)
 }
 
 def fred_fetch(series_id, start_year, freq='m'):

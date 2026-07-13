@@ -86,6 +86,46 @@
     }
     .updated-tag span { color: var(--text); }
 
+    /* ── Tab navigation ── */
+    .tab-nav {
+      position: sticky;
+      top: 10px;
+      z-index: 50;
+      width: 100%;
+      max-width: 1020px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 8px;
+      background: rgba(13,15,24,0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 7px 16px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--surface2); }
+    .tab-btn.active { background: rgba(79,195,247,0.12); color: var(--accent); border-color: rgba(79,195,247,0.35); }
+    @media (max-width: 560px) {
+      .tab-btn { padding: 6px 10px; font-size: 0.78rem; }
+    }
+
+    /* Tab panels: display:contents keeps children as direct flex items of body */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: contents; }
+
     /* ── Stat cards (inside chart panel) ── */
     .cards {
       display: grid;
@@ -227,6 +267,11 @@
     .toggle-btn:hover { border-color: #3a4060; }
 
     canvas { display: block; }
+
+    /* Fixed-height chart container: keeps charts readable at any viewport width
+       and avoids Chart.js aspect-ratio feedback loops inside hidden tabs. */
+    .chart-box { position: relative; width: 100%; height: clamp(320px, 44vw, 500px); }
+    @media (max-width: 640px) { .chart-box { height: 340px; } }
 
     /* ── Footer ── */
     .footer {
@@ -427,12 +472,19 @@
       <span class="badge">Monthly Data</span>
     </div>
     <div class="subtitle">
-      House Price Index &nbsp;·&nbsp; Inflation Rate &nbsp;·&nbsp; 30-Year Mortgage Rate
+      National indicators &nbsp;·&nbsp; City home prices &nbsp;·&nbsp; City rents &nbsp;·&nbsp; Investment calculators
     </div>
     <div class="updated-tag" id="updatedTag" style="display:none">
       Last updated: <span id="fetchedOn">—</span>
     </div>
   </div>
+
+  <nav class="tab-nav" role="tablist" aria-label="Sections">
+    <button class="tab-btn active" role="tab" aria-selected="true" data-tab="overview" onclick="showTab('overview')">Overview</button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="homes" onclick="showTab('homes')">City Home Prices</button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="rents" onclick="showTab('rents')">City Rents</button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="calc" onclick="showTab('calc')">Calculators</button>
+  </nav>
 
   <div class="error-msg" id="errorMsg">
     Data is temporarily unavailable. Please try again later.
@@ -443,7 +495,8 @@
     <p class="load-text">Loading data…</p>
   </div>
 
-  <!-- Chart panel (includes stat cards) -->
+  <!-- Tab: Overview (national indicators + stat cards) -->
+  <div class="tab-panel active" id="tab-overview">
   <div class="chart-panel" id="chartPanel" style="display:none">
 
     <!-- Stat cards -->
@@ -512,10 +565,12 @@
       </button>
     </div>
 
-    <canvas id="chart"></canvas>
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+  </div>
   </div>
 
-  <!-- City Housing Price Index Chart -->
+  <!-- Tab: City Home Prices -->
+  <div class="tab-panel" id="tab-homes">
   <div class="chart-panel" id="cityChartPanel" style="display:none">
     <div style="margin-bottom:18px;">
       <div style="font-size:1.05rem;font-weight:700;color:var(--text);margin-bottom:4px;">City Housing Price Index</div>
@@ -560,14 +615,19 @@
       </button>
     </div>
 
-    <canvas id="cityChart"></canvas>
+    <div class="chart-box"><canvas id="cityChart"></canvas></div>
+  </div>
   </div>
 
-  <!-- City Rental Price Index Chart -->
+  <!-- Tab: City Rents (estimated median monthly rent, $) -->
+  <div class="tab-panel" id="tab-rents">
   <div class="chart-panel" id="rentChartPanel" style="display:none">
     <div style="margin-bottom:18px;">
-      <div style="font-size:1.05rem;font-weight:700;color:var(--text);margin-bottom:4px;">City Rental Price Index</div>
-      <div style="font-size:0.8rem;color:var(--muted);">BLS CPI &mdash; Rent of Primary Residence &nbsp;&middot;&nbsp; Index (1982&ndash;84 = 100) &nbsp;&middot;&nbsp; San Diego proxy: LA area &nbsp;&middot;&nbsp; Austin proxy: South urban</div>
+      <div style="font-size:1.05rem;font-weight:700;color:var(--text);margin-bottom:4px;">City Rents &mdash; Estimated Median Monthly Rent</div>
+      <div style="font-size:0.8rem;color:var(--muted);">
+        BLS CPI Rent of Primary Residence, converted to dollars: each city&rsquo;s index is scaled so its latest reading matches an approximate 2025 metro median rent.
+        Values are nominal (then-current) dollars. &nbsp;&middot;&nbsp; San Diego published semiannually &nbsp;&middot;&nbsp; Austin proxy: South urban CPI
+      </div>
     </div>
 
     <div class="controls">
@@ -589,7 +649,7 @@
         <span class="dot" style="background:#4fc3f7"></span> San Francisco
       </button>
       <button class="toggle-btn" id="rtog-1" onclick="toggleRent(1)">
-        <span class="dot" style="background:#ff9f43"></span> San Diego (LA proxy)
+        <span class="dot" style="background:#ff9f43"></span> San Diego <span style="font-size:0.7em;color:var(--muted);margin-left:3px;">(semiannual)</span>
       </button>
       <button class="toggle-btn" id="rtog-2" onclick="toggleRent(2)">
         <span class="dot" style="background:#6bcb77"></span> Seattle
@@ -601,14 +661,16 @@
         <span class="dot" style="background:#c77dff"></span> Atlanta
       </button>
       <button class="toggle-btn" id="rtog-5" onclick="toggleRent(5)">
-        <span class="dot" style="background:#ff6b6b"></span> Austin (South proxy)
+        <span class="dot" style="background:#ff6b6b"></span> Austin <span style="font-size:0.7em;color:var(--muted);margin-left:3px;">(South proxy)</span>
       </button>
     </div>
 
-    <canvas id="rentChart"></canvas>
+    <div class="chart-box"><canvas id="rentChart"></canvas></div>
+  </div>
   </div>
 
-  <!-- Cap Rate Calculator -->
+  <!-- Tab: Calculators -->
+  <div class="tab-panel" id="tab-calc">
   <div class="cap-section-title" id="capRateSectionTitle" style="display:none">
     <h2>Cap Rate &amp; Cash-on-Cash Calculator &mdash; Single-Family Home</h2>
     <p>
@@ -625,6 +687,7 @@
       Cap Rate &gt;&nbsp;6% = generally good &nbsp;&middot;&nbsp; 4&ndash;6% = marginal &nbsp;&middot;&nbsp; &lt;&nbsp;4% = low yield.
       &nbsp;&nbsp;Cash-on-Cash &gt;&nbsp;8% = strong &nbsp;&middot;&nbsp; 4&ndash;8% = fair &nbsp;&middot;&nbsp; &lt;&nbsp;4% / negative = cash-flow negative.
     </p>
+  </div>
   </div>
 
   <div class="footer">
@@ -648,6 +711,33 @@
   </div>
 
 <script>
+  // ── Tab navigation ──────────────────────────────────────────────────────────
+
+  const TAB_CHARTS = {
+    overview: () => [chart],
+    homes:    () => [cityChart],
+    rents:    () => [rentChart],
+    calc:     () => [],
+  };
+
+  function showTab(name, updateHash = true) {
+    if (!document.getElementById('tab-' + name)) name = 'overview';
+    document.querySelectorAll('.tab-panel').forEach(p =>
+      p.classList.toggle('active', p.id === 'tab-' + name));
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      const on = b.dataset.tab === name;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on);
+    });
+    if (updateHash) history.replaceState(null, '', '#' + name);
+    // Charts built while their tab was hidden have zero size — fix on reveal
+    requestAnimationFrame(() => {
+      (TAB_CHARTS[name] || (() => []))().forEach(c => c && c.resize());
+    });
+  }
+  window.addEventListener('hashchange', () =>
+    showTab(location.hash.slice(1) || 'overview', false));
+
   let rangeStart, rangeEnd, dataMin, dataMax;
   let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [], sp500: [] };
   let chart = null;
@@ -754,15 +844,12 @@
         buildCityChart();
       }
 
-      // City Rental Price chart
-      rentStore = {
-        rent_sf:  data.rent_sf  || [],
-        rent_sd:  data.rent_sd  || [],
-        rent_sea: data.rent_sea || [],
-        rent_dal: data.rent_dal || [],
-        rent_atl: data.rent_atl || [],
-        rent_aus: data.rent_aus || [],
-      };
+      // City Rental Price chart — convert index to estimated dollars up front
+      // so filtering, axis locking, and tooltips all operate on $ values.
+      rentStore = {};
+      RENT_CITIES.forEach(c => {
+        rentStore[c.key] = scaleRentToDollars(data[c.key] || [], c.anchor);
+      });
       if (Object.values(rentStore).some(arr => arr.length > 0)) {
         document.getElementById('rentChartPanel').style.display = 'block';
         initRentSlider();
@@ -773,6 +860,9 @@
       currentMortgageRate = last(store.mortgage)?.value ?? 6.8;
       document.getElementById('capMortgageRateDisplay').textContent = currentMortgageRate.toFixed(2);
       buildCapRateCards();
+
+      // Honor a shared/bookmarked tab link (e.g. index.html#rents)
+      showTab(location.hash.slice(1) || 'overview', false);
     } catch {
       document.getElementById('loadingWrap').style.display = 'none';
       document.getElementById('errorMsg').style.display = 'block';
@@ -869,8 +959,7 @@
       data: { labels: [], datasets: [] },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 1.9,
+        maintainAspectRatio: false,
         animation: { duration: 200 },
         interaction: { mode: 'index', intersect: false },
         plugins: {
@@ -1188,8 +1277,7 @@
       data: { labels: [], datasets: [] },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 1.9,
+        maintainAspectRatio: false,
         animation: { duration: 200 },
         interaction: { mode: 'index', intersect: false },
         plugins: {
@@ -1364,15 +1452,24 @@
     window.addEventListener('mouseleave', endCityPan);
   }
 
-  // ── City Rental Price Index Chart ─────────────────────────────────────────
+  // ── City Rents Chart ───────────────────────────────────────────────────────
+  // `anchor` = approximate 2025 metro median monthly rent ($). Each city's BLS
+  // rent index is scaled so its latest reading equals the anchor, turning the
+  // unitless index into an estimated median rent in nominal dollars.
   const RENT_CITIES = [
-    { key: 'rent_sf',  label: 'San Francisco',       color: '#4fc3f7', bg: 'rgba(79,195,247,0.06)'   },
-    { key: 'rent_sd',  label: 'San Diego (LA proxy)', color: '#ff9f43', bg: 'rgba(255,159,67,0.06)'   },
-    { key: 'rent_sea', label: 'Seattle',              color: '#6bcb77', bg: 'rgba(107,203,119,0.06)'  },
-    { key: 'rent_dal', label: 'Dallas',               color: '#ffd166', bg: 'rgba(255,209,102,0.06)'  },
-    { key: 'rent_atl', label: 'Atlanta',              color: '#c77dff', bg: 'rgba(199,125,255,0.06)'  },
-    { key: 'rent_aus', label: 'Austin (South proxy)', color: '#ff6b6b', bg: 'rgba(255,107,107,0.06)'  },
+    { key: 'rent_sf',  label: 'San Francisco',        anchor: 3400, color: '#4fc3f7', bg: 'rgba(79,195,247,0.06)'   },
+    { key: 'rent_sd',  label: 'San Diego',            anchor: 3000, color: '#ff9f43', bg: 'rgba(255,159,67,0.06)'   },
+    { key: 'rent_sea', label: 'Seattle',              anchor: 2300, color: '#6bcb77', bg: 'rgba(107,203,119,0.06)'  },
+    { key: 'rent_dal', label: 'Dallas',               anchor: 1750, color: '#ffd166', bg: 'rgba(255,209,102,0.06)'  },
+    { key: 'rent_atl', label: 'Atlanta',              anchor: 1800, color: '#c77dff', bg: 'rgba(199,125,255,0.06)'  },
+    { key: 'rent_aus', label: 'Austin (South proxy)', anchor: 1700, color: '#ff6b6b', bg: 'rgba(255,107,107,0.06)'  },
   ];
+
+  function scaleRentToDollars(series, anchor) {
+    if (!series.length) return [];
+    const latest = series[series.length - 1].value;
+    return series.map(d => ({ date: d.date, value: Math.round(d.value / latest * anchor) }));
+  }
 
   let rentStore = {};
   let rentChart = null;
@@ -1450,8 +1547,7 @@
       data: { labels: [], datasets: [] },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 1.9,
+        maintainAspectRatio: false,
         animation: { duration: 200 },
         interaction: { mode: 'index', intersect: false },
         plugins: {
@@ -1473,7 +1569,7 @@
             callbacks: {
               title: items => fmtDate(items[0]?.label || ''),
               label: c => c.parsed.y !== null
-                ? '  ' + c.dataset.label + ':  ' + c.parsed.y.toFixed(1)
+                ? '  ' + c.dataset.label + ':  ' + fmtUSD(c.parsed.y) + '/mo'
                 : '  ' + c.dataset.label + ':  N/A',
               labelColor: c => ({ borderColor: c.dataset.borderColor, backgroundColor: c.dataset.borderColor }),
             },
@@ -1507,7 +1603,7 @@
             ticks: {
               color: '#8890b0',
               font: { size: 12, weight: '500' },
-              callback: v => v.toFixed(0),
+              callback: v => '$' + Math.round(v).toLocaleString('en-US'),
             },
             grid: {
               color: 'rgba(255,255,255,0.07)',
@@ -1516,7 +1612,7 @@
             border: { color: '#3a4060', display: true },
             title: {
               display: true,
-              text: 'CPI Rent Index (1982–84 = 100)',
+              text: 'Est. median monthly rent (nominal $)',
               color: '#6b7194',
               font: { size: 11 },
             },
