@@ -23,6 +23,11 @@ from urllib.parse import urlencode
 SP500_HISTORY_URL = 'https://raw.githubusercontent.com/datasets/s-and-p-500/main/data/data.csv'
 SP500_START_YEAR = 1946  # matches CPI, the earliest-starting series on the main chart
 
+# Costco (COST) monthly close from Yahoo Finance — FRED does not carry
+# individual equities. Trades since Jul 1986.
+COST_SYMBOL = 'COST'
+COST_START_YEAR = 1986
+
 API_KEY = os.environ.get('FRED_API_KEY', '')
 if not API_KEY:
     sys.exit('Error: FRED_API_KEY environment variable is not set.')
@@ -94,6 +99,25 @@ def fetch_sp500_history(start_year):
         if row['Date'][:4].isdigit() and int(row['Date'][:4]) >= start_year and row['SP500']
     ]
 
+def fetch_yahoo_monthly(symbol, start_year):
+    """Monthly close prices from Yahoo Finance's chart API (last close per month)."""
+    p1 = int(datetime(start_year, 1, 1).timestamp())
+    url = (f'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}'
+           f'?period1={p1}&period2=9999999999&interval=1mo')
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        data = json.loads(resp.read())
+    res = data['chart']['result'][0]
+    ts = res['timestamp']
+    close = res['indicators']['quote'][0]['close']
+    by_month = {}
+    for t, c in zip(ts, close):
+        if c is None:
+            continue
+        month = datetime.utcfromtimestamp(t).strftime('%Y-%m')
+        by_month[month] = round(c, 2)  # last close in the month wins
+    return [{'date': m, 'value': v} for m, v in sorted(by_month.items())]
+
 def yoy_monthly(levels):
     """YoY: compare each month to the same month 12 months prior, matched by date string."""
     lookup = {d['date']: d['value'] for d in levels}
@@ -150,6 +174,17 @@ except Exception as exc:
     print(f'SKIPPED — {exc}')
     output['sp500'] = []
     output['sp500_level'] = []
+
+print('  COST (Yahoo Finance)...', end=' ', flush=True)
+try:
+    raw = fetch_yahoo_monthly(COST_SYMBOL, COST_START_YEAR)
+    output['cost'] = yoy_monthly(raw)
+    output['cost_level'] = raw
+    print(f'{output["cost"][0]["date"]}–{output["cost"][-1]["date"]}  ({len(output["cost"])} records)')
+except Exception as exc:
+    print(f'SKIPPED — {exc}')
+    output['cost'] = []
+    output['cost_level'] = []
 
 with open('fred_data.json', 'w') as f:
     json.dump(output, f)

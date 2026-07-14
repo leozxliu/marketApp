@@ -23,6 +23,7 @@
       --mrt:       #6bcb77;
       --ndq:       #ffd166;
       --spx:       #2ec4b6;
+      --cst:       #c77dff;
     }
 
     body {
@@ -129,7 +130,7 @@
     /* ── Stat cards (inside chart panel) ── */
     .cards {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: 10px;
       margin-bottom: 18px;
     }
@@ -161,6 +162,7 @@
     .card.mrt::before { background: var(--mrt); }
     .card.ndq::before { background: var(--ndq); }
     .card.spx::before { background: var(--spx); }
+    .card.cst::before { background: var(--cst); }
     .card:hover { border-color: #353c55; }
 
     .card-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
@@ -170,6 +172,7 @@
     .card.mrt .card-value { color: var(--mrt); }
     .card.ndq .card-value { color: var(--ndq); }
     .card.spx .card-value { color: var(--spx); }
+    .card.cst .card-value { color: var(--cst); }
     .card-sub { font-size: 0.7rem; color: var(--muted); }
     .card-year { color: #4a5170; }
 
@@ -556,6 +559,11 @@
         <div class="card-value" id="spxVal">—</div>
         <div class="card-sub">Trailing YoY &middot; <span class="card-year" id="spxYear"></span></div>
       </div>
+      <div class="card cst">
+        <div class="card-label">Costco (COST)</div>
+        <div class="card-value" id="cstVal">—</div>
+        <div class="card-sub"><span id="cstPrice"></span> &middot; <span class="card-year" id="cstYear"></span></div>
+      </div>
     </div>
     <div class="chart-workspace">
       <aside class="chart-side">
@@ -591,6 +599,9 @@
             </button>
             <button class="toggle-btn" id="tog-spx" onclick="toggleSeries(4)">
               <span class="dot" style="background:#2ec4b6"></span> S&amp;P 500 (Trailing YoY)
+            </button>
+            <button class="toggle-btn" id="tog-cst" onclick="toggleSeries(5)">
+              <span class="dot" style="background:#c77dff"></span> Costco / COST (Trailing YoY)
             </button>
           </div>
         </div>
@@ -804,7 +815,7 @@
     showTab(location.hash.slice(1) || 'overview', false));
 
   let rangeStart, rangeEnd, dataMin, dataMax;
-  let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [], sp500: [] };
+  let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [], sp500: [], cost: [] };
   let chart = null;
   const hiddenSeries = new Set();
   let _panActive = false;
@@ -919,7 +930,7 @@
       const res = await fetch('fred_data.json');
       if (!res.ok) throw new Error();
       const data = await res.json();
-      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, nasdaq: data.nasdaq || [], sp500: data.sp500 || [] };
+      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, nasdaq: data.nasdaq || [], sp500: data.sp500 || [], cost: data.cost || [] };
 
       if (data.fetched_at) {
         document.getElementById('fetchedOn').textContent = data.fetched_at;
@@ -937,7 +948,11 @@
         hpi:    data.hpi_level    || [],
         nasdaq: data.nasdaq_level || [],
         sp500:  data.sp500_level  || [],
+        cost:   data.cost_level   || [],
       };
+      // Costco card shows current share price alongside its YoY growth
+      const cst = last(levelsStore.cost);
+      if (cst) document.getElementById('cstPrice').textContent = fmtUSD(cst.value);
       const hasLevels = Object.values(levelsStore).some(a => a.length);
       if (hasLevels) document.getElementById('levelsSection').style.display = '';
       buildChart();
@@ -1013,6 +1028,11 @@
       document.getElementById('spxVal').textContent = (s.value > 0 ? '+' : '') + s.value.toFixed(1) + '%';
       document.getElementById('spxYear').textContent = fmtDate(s.date);
     }
+    const ct = last(store.cost);
+    if (ct) {
+      document.getElementById('cstVal').textContent = (ct.value > 0 ? '+' : '') + ct.value.toFixed(1) + '%';
+      document.getElementById('cstYear').textContent = fmtDate(ct.date);
+    }
   }
 
   function initSlider() {
@@ -1063,7 +1083,7 @@
   }
 
   function toggleSeries(idx) {
-    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt', 'tog-sp5', 'tog-spx'];
+    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt', 'tog-sp5', 'tog-spx', 'tog-cst'];
     const btn = document.getElementById(ids[idx]);
     if (hiddenSeries.has(idx)) {
       hiddenSeries.delete(idx);
@@ -1161,10 +1181,10 @@
   // in the current range. Both charts use this as their labels so x-ticks align.
   function overviewDates() {
     const series = [
-      store.hpi, store.cpi, store.mortgage, store.nasdaq, store.sp500,
-      levelsStore.hpi, levelsStore.nasdaq, levelsStore.sp500,
+      store.hpi, store.cpi, store.mortgage, store.nasdaq, store.sp500, store.cost,
+      levelsStore.hpi, levelsStore.nasdaq, levelsStore.sp500, levelsStore.cost,
     ];
-    return [...new Set(series.flatMap(s => filteredSeries(s).map(d => d.date)))].sort();
+    return [...new Set(series.flatMap(s => filteredSeries(s || []).map(d => d.date)))].sort();
   }
 
   function refreshChart(noAnim) {
@@ -1174,6 +1194,7 @@
     const mrtFilt = filteredSeries(store.mortgage);
     const sp5Filt = filteredSeries(store.nasdaq);
     const spxFilt = filteredSeries(store.sp500);
+    const cstFilt = filteredSeries(store.cost);
 
     // Shared x-domain across both Overview charts so their ticks line up
     const dates = overviewDates();
@@ -1183,6 +1204,7 @@
     const mrtMap = new Map(mrtFilt.map(d => [d.date, +d.value.toFixed(2)]));
     const sp5Map = new Map(sp5Filt.map(d => [d.date, +d.value.toFixed(2)]));
     const spxMap = new Map(spxFilt.map(d => [d.date, +d.value.toFixed(2)]));
+    const cstMap = new Map(cstFilt.map(d => [d.date, +d.value.toFixed(2)]));
 
     chart.data.labels = dates;
     // During pan, suppress crosshair
@@ -1225,6 +1247,14 @@
         data: dates.map(d => spxMap.get(d) ?? null),
         hidden: hiddenSeries.has(4),
         borderColor: '#2ec4b6', backgroundColor: 'rgba(46,196,182,0.06)',
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
+        tension: 0.2, fill: false, spanGaps: false,
+      },
+      {
+        label: 'Costco / COST (Trailing YoY)',
+        data: dates.map(d => cstMap.get(d) ?? null),
+        hidden: hiddenSeries.has(5),
+        borderColor: '#c77dff', backgroundColor: 'rgba(199,125,255,0.06)',
         borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
         tension: 0.2, fill: false, spanGaps: false,
       },
@@ -1345,8 +1375,9 @@
     { key: 'hpi',    label: 'House Price (Case-Shiller)', color: '#4fc3f7', bg: 'rgba(79,195,247,0.06)',  toggleIdx: 0 },
     { key: 'nasdaq', label: 'NASDAQ Composite',           color: '#ffd166', bg: 'rgba(255,209,102,0.06)', toggleIdx: 3 },
     { key: 'sp500',  label: 'S&P 500',                    color: '#2ec4b6', bg: 'rgba(46,196,182,0.06)',  toggleIdx: 4 },
+    { key: 'cost',   label: 'Costco (COST)',              color: '#c77dff', bg: 'rgba(199,125,255,0.06)', toggleIdx: 5 },
   ];
-  let levelsStore = { hpi: [], nasdaq: [], sp500: [] };
+  let levelsStore = { hpi: [], nasdaq: [], sp500: [], cost: [] };
   let levelsChart = null;
   let _levelsFrozenBases = null;   // { key: baseValue } while panning
 
