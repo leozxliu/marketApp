@@ -842,21 +842,22 @@
       document.getElementById('loadingWrap').style.display = 'none';
       document.getElementById('chartPanel').style.display = 'block';
       initSlider();
-      buildChart();
 
-      // Price-levels companion chart (shares range + legend toggles)
+      // Populate the levels store BEFORE building the top chart so both share
+      // the complete x-domain (overviewDates) from the first paint.
       levelsStore = {
         hpi:    data.hpi_level    || [],
         nasdaq: data.nasdaq_level || [],
         sp500:  data.sp500_level  || [],
       };
-      if (Object.values(levelsStore).some(a => a.length)) {
-        document.getElementById('levelsSection').style.display = '';
-        buildLevelsChart();
-      }
+      const hasLevels = Object.values(levelsStore).some(a => a.length);
+      if (hasLevels) document.getElementById('levelsSection').style.display = '';
+      buildChart();
+      if (hasLevels) buildLevelsChart();
       attachCanvasEvents();
 
-      // City HPI chart
+      // City HPI chart + companion price chart. Populate both stores before
+      // building so cityDates() has the full shared x-domain on first paint.
       cityStore = {
         hpi_sf:  data.hpi_sf  || [],
         hpi_sd:  data.hpi_sd  || [],
@@ -866,20 +867,17 @@
         hpi_aus: data.hpi_aus || [],
         hpi_tal: data.hpi_tal || [],
       };
-      if (Object.values(cityStore).some(arr => arr.length > 0)) {
-        document.getElementById('cityChartPanel').style.display = 'block';
-        initCitySlider();
-        buildCityChart();
-      }
-
-      // City home-price levels (estimated dollars), shares the city slider + toggles
       cityPriceStore = {};
       CITIES.forEach(c => {
         cityPriceStore[c.key] = scaleRentToDollars(data[c.key + '_level'] || [], c.anchor);
       });
-      if (Object.values(cityPriceStore).some(arr => arr.length > 0)) {
-        document.getElementById('cityPriceSection').style.display = '';
-        buildCityPriceChart();
+      const hasCityPrice = Object.values(cityPriceStore).some(arr => arr.length > 0);
+      if (Object.values(cityStore).some(arr => arr.length > 0)) {
+        document.getElementById('cityChartPanel').style.display = 'block';
+        initCitySlider();
+        if (hasCityPrice) document.getElementById('cityPriceSection').style.display = '';
+        buildCityChart();
+        if (hasCityPrice) buildCityPriceChart();
       }
 
       // City Rental Price chart — convert index to estimated dollars up front
@@ -989,6 +987,10 @@
     if (chart) refreshChart();
   }
 
+  // Pin a chart’s y-axis to a fixed pixel width so a stacked pair shares the
+  // same plot-area left edge (and thus aligned x-axis ticks).
+  function fixedYWidth(px) { return (scale) => { scale.width = px; }; }
+
   function buildChart() {
     if (chart) { chart.destroy(); chart = null; }
     const ctx = document.getElementById('chart').getContext('2d');
@@ -1055,6 +1057,7 @@
             border: { color: '#3a4060', display: true },
           },
           y: {
+            afterFit: fixedYWidth(64),
             ticks: { color: '#8890b0', font: { size: 12, weight: '500' }, stepSize: 5, callback: v => v + '%' },
             grid:   { color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.50)' : 'rgba(255,255,255,0.07)',
                       lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1 },
@@ -1066,6 +1069,16 @@
     refreshChart();
   }
 
+  // Union of every date shown on either Overview chart (top % + bottom levels),
+  // in the current range. Both charts use this as their labels so x-ticks align.
+  function overviewDates() {
+    const series = [
+      store.hpi, store.cpi, store.mortgage, store.nasdaq, store.sp500,
+      levelsStore.hpi, levelsStore.nasdaq, levelsStore.sp500,
+    ];
+    return [...new Set(series.flatMap(s => filteredSeries(s).map(d => d.date)))].sort();
+  }
+
   function refreshChart(noAnim) {
     if (!chart) return;
     const hpiFilt = filteredSeries(store.hpi);
@@ -1074,14 +1087,8 @@
     const sp5Filt = filteredSeries(store.nasdaq);
     const spxFilt = filteredSeries(store.sp500);
 
-    // Union of all dates in range, sorted
-    const dates = [...new Set([
-      ...hpiFilt.map(d => d.date),
-      ...cpiFilt.map(d => d.date),
-      ...mrtFilt.map(d => d.date),
-      ...sp5Filt.map(d => d.date),
-      ...spxFilt.map(d => d.date),
-    ])].sort();
+    // Shared x-domain across both Overview charts so their ticks line up
+    const dates = overviewDates();
 
     const hpiMap = new Map(hpiFilt.map(d => [d.date, +d.value.toFixed(2)]));
     const cpiMap = new Map(cpiFilt.map(d => [d.date, +d.value.toFixed(2)]));
@@ -1328,6 +1335,7 @@
             border: { color: '#3a4060', display: true },
           },
           y: {
+            afterFit: fixedYWidth(64),
             type: 'logarithmic',
             ticks: {
               color: '#8890b0',
@@ -1357,7 +1365,7 @@
   function refreshLevelsChart(noAnim) {
     if (!levelsChart) return;
     const filt = LEVELS_SERIES.map(s => filteredSeries(levelsStore[s.key]));
-    const dates = [...new Set(filt.flatMap(arr => arr.map(d => d.date)))].sort();
+    const dates = overviewDates();   // shared with the top chart so ticks align
     levelsChart._cx = null;
     levelsChart.data.labels = dates;
     levelsChart.data.datasets = LEVELS_SERIES.map((s, i) => {
@@ -1529,6 +1537,7 @@
             border: { color: '#3a4060', display: true },
           },
           y: {
+            afterFit: fixedYWidth(80),
             ticks: {
               color: '#8890b0',
               font: { size: 12, weight: '500' },
@@ -1548,10 +1557,17 @@
     attachCityCanvasEvents();
   }
 
+  // Union of every date on either City chart (top % + bottom price), in range,
+  // so both charts share one x-domain and their ticks line up.
+  function cityDates() {
+    const series = CITIES.flatMap(c => [cityStore[c.key] || [], cityPriceStore[c.key] || []]);
+    return [...new Set(series.flatMap(s => filteredCity(s).map(d => d.date)))].sort();
+  }
+
   function refreshCityChart(noAnim) {
     if (!cityChart) return;
     const filtered = CITIES.map(c => filteredCity(cityStore[c.key] || []));
-    const dates = [...new Set(filtered.flatMap(arr => arr.map(d => d.date)))].sort();
+    const dates = cityDates();
     cityChart._cx = null;
     cityChart.data.labels = dates;
     cityChart.data.datasets = CITIES.map((c, i) => {
@@ -1728,6 +1744,7 @@
             border: { color: '#3a4060', display: true },
           },
           y: {
+            afterFit: fixedYWidth(80),
             ticks: {
               color: '#8890b0',
               font: { size: 12, weight: '500' },
@@ -1751,7 +1768,7 @@
   function refreshCityPriceChart(noAnim) {
     if (!cityPriceChart) return;
     const filtered = CITIES.map(c => filteredCity(cityPriceStore[c.key] || []));
-    const dates = [...new Set(filtered.flatMap(arr => arr.map(d => d.date)))].sort();
+    const dates = cityDates();   // shared with the top chart so ticks align
     cityPriceChart._cx = null;
     cityPriceChart.data.labels = dates;
     cityPriceChart.data.datasets = CITIES.map((c, i) => {
