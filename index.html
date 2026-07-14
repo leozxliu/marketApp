@@ -810,6 +810,32 @@
   let _panActive = false;
 
   // ---- Crosshair plugin ----
+  // Stacked pairs whose vertical crosshair should follow the cursor together.
+  // Both charts in a pair share one x-domain and aligned plot areas.
+  function pairedChart(c) {
+    if (c === chart)          return levelsChart;
+    if (c === levelsChart)    return chart;
+    if (c === cityChart)      return cityPriceChart;
+    if (c === cityPriceChart) return cityChart;
+    return null;
+  }
+
+  // Mirror the hovered chart's vertical line onto its pair (by fractional
+  // position across the plot area, so it lands on the same date), then redraw
+  // just that pair. `_linkedCx` marks a mirrored (vertical-only) line.
+  function syncLinkedCrosshair(src) {
+    const p = pairedChart(src);
+    if (!p || !p.chartArea) return;
+    if (src._cx == null) {
+      if (p._linkedCx != null) { p._linkedCx = null; p.draw(); }
+    } else {
+      const a = src.chartArea, b = p.chartArea;
+      const frac = (src._cx - a.left) / (a.right - a.left);
+      p._linkedCx = b.left + frac * (b.right - b.left);
+      p.draw();
+    }
+  }
+
   const crosshairPlugin = {
     id: 'crosshair',
     afterEvent(chart, args) {
@@ -823,23 +849,37 @@
           chart._cx = null;
         }
         args.changed = true;
+        syncLinkedCrosshair(chart);
       } else if (e.type === 'mouseout') {
         chart._cx = null;
         args.changed = true;
+        syncLinkedCrosshair(chart);
       }
     },
     afterDraw(chart) {
-      if (chart._cx == null) return;
       const { ctx, chartArea: { left, right, top, bottom } } = chart;
-      ctx.save();
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(chart._cx, top);  ctx.lineTo(chart._cx, bottom);
-      ctx.moveTo(left, chart._cy); ctx.lineTo(right, chart._cy);
-      ctx.stroke();
-      ctx.restore();
+      if (chart._cx != null) {
+        // Full crosshair on the chart under the cursor
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(chart._cx, top);  ctx.lineTo(chart._cx, bottom);
+        ctx.moveTo(left, chart._cy); ctx.lineTo(right, chart._cy);
+        ctx.stroke();
+        ctx.restore();
+      } else if (chart._linkedCx != null) {
+        // Vertical line only, mirrored from the paired chart
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(chart._linkedCx, top); ctx.lineTo(chart._linkedCx, bottom);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
   };
   Chart.register(crosshairPlugin);
@@ -1146,7 +1186,7 @@
 
     chart.data.labels = dates;
     // During pan, suppress crosshair
-    if (chart) chart._cx = null;
+    if (chart) { chart._cx = null; chart._linkedCx = null; }
     chart.data.datasets = [
       {
         label: 'House Price Index (Trailing YoY)',
@@ -1414,7 +1454,7 @@
     if (!levelsChart) return;
     const filt = LEVELS_SERIES.map(s => filteredSeries(levelsStore[s.key]));
     const dates = overviewDates();   // shared with the top chart so ticks align
-    levelsChart._cx = null;
+    levelsChart._cx = null; levelsChart._linkedCx = null;
     levelsChart.data.labels = dates;
     levelsChart.data.datasets = LEVELS_SERIES.map((s, i) => {
       const arr = filt[i];
@@ -1616,7 +1656,7 @@
     if (!cityChart) return;
     const filtered = CITIES.map(c => filteredCity(cityStore[c.key] || []));
     const dates = cityDates();
-    cityChart._cx = null;
+    cityChart._cx = null; cityChart._linkedCx = null;
     cityChart.data.labels = dates;
     cityChart.data.datasets = CITIES.map((c, i) => {
       const map = new Map(filtered[i].map(d => [d.date, d.value]));
@@ -1817,7 +1857,7 @@
     if (!cityPriceChart) return;
     const filtered = CITIES.map(c => filteredCity(cityPriceStore[c.key] || []));
     const dates = cityDates();   // shared with the top chart so ticks align
-    cityPriceChart._cx = null;
+    cityPriceChart._cx = null; cityPriceChart._linkedCx = null;
     cityPriceChart.data.labels = dates;
     cityPriceChart.data.datasets = CITIES.map((c, i) => {
       const map = new Map(filtered[i].map(d => [d.date, d.value]));
