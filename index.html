@@ -273,6 +273,36 @@
     .chart-box { position: relative; width: 100%; height: clamp(320px, 44vw, 500px); }
     @media (max-width: 640px) { .chart-box { height: 340px; } }
 
+    /* ── Side control panel (Overview & City tabs) ── */
+    .chart-workspace { display: flex; gap: 24px; align-items: flex-start; }
+    .chart-side { width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 18px; }
+    .chart-stack { flex: 1; min-width: 0; }
+    .side-label {
+      font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted); font-weight: 700; margin-bottom: 9px;
+    }
+    .side-divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+    .preset-col { flex-direction: column; }
+    .preset-col .preset-btn { width: 100%; text-align: center; }
+    .legend-col { flex-direction: column; margin-bottom: 0; }
+    .legend-col .toggle-btn { width: 100%; }
+    .side-range { margin: 12px 0 6px; font-size: 0.8rem; }
+    .chart-side .slider-wrap { margin: 0; padding: 10px 11px 4px; }
+    /* The range label already shows the years live, so drop the floating
+       slider tooltips in the cramped sidebar to avoid overlap. */
+    .chart-side .noUi-tooltip { display: none; }
+
+    /* Collapse the sidebar back to a top bar on narrow screens */
+    @media (max-width: 760px) {
+      .chart-workspace { flex-direction: column; gap: 16px; }
+      .chart-side { width: 100%; }
+      .preset-col { flex-direction: row; flex-wrap: wrap; }
+      .preset-col .preset-btn { width: auto; }
+      .legend-col { flex-direction: row; flex-wrap: wrap; }
+      .legend-col .toggle-btn { width: auto; }
+      .chart-side .slider-wrap { padding: 6px 6px 4px; }
+    }
+
     /* ── Footer ── */
     .footer {
       width: 100%;
@@ -527,50 +557,59 @@
         <div class="card-sub">Trailing YoY &middot; <span class="card-year" id="spxYear"></span></div>
       </div>
     </div>
-    <div class="controls">
-      <div class="preset-group" id="presetGroup">
-        <button class="preset-btn" onclick="setPreset(10)">10Y</button>
-        <button class="preset-btn" onclick="setPreset(20)">20Y</button>
-        <button class="preset-btn" onclick="setPreset(30)">30Y</button>
-        <button class="preset-btn" onclick="setPreset(50)">50Y</button>
-        <button class="preset-btn" onclick="setPreset(0)">All</button>
-      </div>
-      <div class="range-label">Range: <b id="rangeDisplay">—</b></div>
-    </div>
+    <div class="chart-workspace">
+      <aside class="chart-side">
+        <div class="side-group">
+          <div class="side-label">Timeframe</div>
+          <div class="preset-group preset-col" id="presetGroup">
+            <button class="preset-btn" onclick="setPreset(10)">10Y</button>
+            <button class="preset-btn" onclick="setPreset(20)">20Y</button>
+            <button class="preset-btn" onclick="setPreset(30)">30Y</button>
+            <button class="preset-btn" onclick="setPreset(50)">50Y</button>
+            <button class="preset-btn" onclick="setPreset(0)">All</button>
+          </div>
+          <div class="range-label side-range">Range: <b id="rangeDisplay">—</b></div>
+          <div class="slider-wrap">
+            <div id="yearSlider"></div>
+          </div>
+        </div>
+        <hr class="side-divider">
+        <div class="side-group">
+          <div class="side-label">Series</div>
+          <div class="legend-toggles legend-col" id="legendToggles">
+            <button class="toggle-btn" id="tog-hpi" onclick="toggleSeries(0)">
+              <span class="dot" style="background:#4fc3f7"></span> House Price Index (Trailing YoY)
+            </button>
+            <button class="toggle-btn" id="tog-cpi" onclick="toggleSeries(1)">
+              <span class="dot" style="background:#ff6b6b"></span> Inflation Rate / CPI (Trailing YoY)
+            </button>
+            <button class="toggle-btn" id="tog-mrt" onclick="toggleSeries(2)">
+              <span class="dot" style="background:#6bcb77"></span> 30-Year Mortgage Rate
+            </button>
+            <button class="toggle-btn" id="tog-sp5" onclick="toggleSeries(3)">
+              <span class="dot" style="background:#ffd166"></span> NASDAQ Composite (Trailing YoY)
+            </button>
+            <button class="toggle-btn" id="tog-spx" onclick="toggleSeries(4)">
+              <span class="dot" style="background:#2ec4b6"></span> S&amp;P 500 (Trailing YoY)
+            </button>
+          </div>
+        </div>
+      </aside>
 
-    <div class="slider-wrap">
-      <div id="yearSlider"></div>
-    </div>
+      <div class="chart-stack">
+        <div class="chart-box"><canvas id="chart"></canvas></div>
 
-    <div class="legend-toggles" id="legendToggles">
-      <button class="toggle-btn" id="tog-hpi" onclick="toggleSeries(0)">
-        <span class="dot" style="background:#4fc3f7"></span> House Price Index (Trailing YoY)
-      </button>
-      <button class="toggle-btn" id="tog-cpi" onclick="toggleSeries(1)">
-        <span class="dot" style="background:#ff6b6b"></span> Inflation Rate / CPI (Trailing YoY)
-      </button>
-      <button class="toggle-btn" id="tog-mrt" onclick="toggleSeries(2)">
-        <span class="dot" style="background:#6bcb77"></span> 30-Year Mortgage Rate
-      </button>
-      <button class="toggle-btn" id="tog-sp5" onclick="toggleSeries(3)">
-        <span class="dot" style="background:#ffd166"></span> NASDAQ Composite (Trailing YoY)
-      </button>
-      <button class="toggle-btn" id="tog-spx" onclick="toggleSeries(4)">
-        <span class="dot" style="background:#2ec4b6"></span> S&amp;P 500 (Trailing YoY)
-      </button>
-    </div>
-
-    <div class="chart-box"><canvas id="chart"></canvas></div>
-
-    <div id="levelsSection" style="display:none">
-      <div style="margin:28px 0 14px;">
-        <div style="font-size:1.0rem;font-weight:700;color:var(--text);margin-bottom:4px;">Price Levels &mdash; Growth of $100</div>
-        <div style="font-size:0.78rem;color:var(--muted);">
-          Each series rebased to $100 at the start of the selected range (or its first available data) &nbsp;&middot;&nbsp; log scale &nbsp;&middot;&nbsp;
-          shares the timeframe and legend toggles above
+        <div id="levelsSection" style="display:none">
+          <div style="margin:28px 0 14px;">
+            <div style="font-size:1.0rem;font-weight:700;color:var(--text);margin-bottom:4px;">Price Levels &mdash; Growth of $100</div>
+            <div style="font-size:0.78rem;color:var(--muted);">
+              Each series rebased to $100 at the start of the selected range (or its first available data) &nbsp;&middot;&nbsp; log scale &nbsp;&middot;&nbsp;
+              shares the timeframe and legend toggles on the left
+            </div>
+          </div>
+          <div class="chart-box"><canvas id="levelsChart"></canvas></div>
         </div>
       </div>
-      <div class="chart-box"><canvas id="levelsChart"></canvas></div>
     </div>
   </div>
   </div>
@@ -583,55 +622,64 @@
       <div style="font-size:0.8rem;color:var(--muted);">Trailing YoY % &nbsp;&middot;&nbsp; S&amp;P/Case-Shiller (SA) &nbsp;&middot;&nbsp; Austin &amp; Tallahassee via FHFA (quarterly)</div>
     </div>
 
-    <div class="controls">
-      <div class="preset-group" id="cityPresetGroup">
-        <button class="preset-btn" onclick="setCityPreset(10)">10Y</button>
-        <button class="preset-btn" onclick="setCityPreset(20)">20Y</button>
-        <button class="preset-btn" onclick="setCityPreset(30)">30Y</button>
-        <button class="preset-btn" onclick="setCityPreset(0)">All</button>
-      </div>
-      <div class="range-label">Range: <b id="cityRangeDisplay">&mdash;</b></div>
-    </div>
+    <div class="chart-workspace">
+      <aside class="chart-side">
+        <div class="side-group">
+          <div class="side-label">Timeframe</div>
+          <div class="preset-group preset-col" id="cityPresetGroup">
+            <button class="preset-btn" onclick="setCityPreset(10)">10Y</button>
+            <button class="preset-btn" onclick="setCityPreset(20)">20Y</button>
+            <button class="preset-btn" onclick="setCityPreset(30)">30Y</button>
+            <button class="preset-btn" onclick="setCityPreset(0)">All</button>
+          </div>
+          <div class="range-label side-range">Range: <b id="cityRangeDisplay">&mdash;</b></div>
+          <div class="slider-wrap">
+            <div id="cityYearSlider"></div>
+          </div>
+        </div>
+        <hr class="side-divider">
+        <div class="side-group">
+          <div class="side-label">Cities</div>
+          <div class="legend-toggles legend-col">
+            <button class="toggle-btn" id="ctog-0" onclick="toggleCity(0)">
+              <span class="dot" style="background:#4fc3f7"></span> San Francisco
+            </button>
+            <button class="toggle-btn" id="ctog-1" onclick="toggleCity(1)">
+              <span class="dot" style="background:#ff9f43"></span> San Diego
+            </button>
+            <button class="toggle-btn" id="ctog-2" onclick="toggleCity(2)">
+              <span class="dot" style="background:#6bcb77"></span> Seattle
+            </button>
+            <button class="toggle-btn" id="ctog-3" onclick="toggleCity(3)">
+              <span class="dot" style="background:#ffd166"></span> Dallas
+            </button>
+            <button class="toggle-btn" id="ctog-4" onclick="toggleCity(4)">
+              <span class="dot" style="background:#c77dff"></span> Atlanta
+            </button>
+            <button class="toggle-btn" id="ctog-5" onclick="toggleCity(5)">
+              <span class="dot" style="background:#ff6b6b"></span> Austin <span style="font-size:0.7em;color:var(--muted);margin-left:3px;">(FHFA)</span>
+            </button>
+            <button class="toggle-btn" id="ctog-6" onclick="toggleCity(6)">
+              <span class="dot" style="background:#ff70a6"></span> Tallahassee <span style="font-size:0.7em;color:var(--muted);margin-left:3px;">(FHFA)</span>
+            </button>
+          </div>
+        </div>
+      </aside>
 
-    <div class="slider-wrap">
-      <div id="cityYearSlider"></div>
-    </div>
+      <div class="chart-stack">
+        <div class="chart-box"><canvas id="cityChart"></canvas></div>
 
-    <div class="legend-toggles">
-      <button class="toggle-btn" id="ctog-0" onclick="toggleCity(0)">
-        <span class="dot" style="background:#4fc3f7"></span> San Francisco
-      </button>
-      <button class="toggle-btn" id="ctog-1" onclick="toggleCity(1)">
-        <span class="dot" style="background:#ff9f43"></span> San Diego
-      </button>
-      <button class="toggle-btn" id="ctog-2" onclick="toggleCity(2)">
-        <span class="dot" style="background:#6bcb77"></span> Seattle
-      </button>
-      <button class="toggle-btn" id="ctog-3" onclick="toggleCity(3)">
-        <span class="dot" style="background:#ffd166"></span> Dallas
-      </button>
-      <button class="toggle-btn" id="ctog-4" onclick="toggleCity(4)">
-        <span class="dot" style="background:#c77dff"></span> Atlanta
-      </button>
-      <button class="toggle-btn" id="ctog-5" onclick="toggleCity(5)">
-        <span class="dot" style="background:#ff6b6b"></span> Austin <span style="font-size:0.7em;color:var(--muted);margin-left:3px;">(FHFA)</span>
-      </button>
-      <button class="toggle-btn" id="ctog-6" onclick="toggleCity(6)">
-        <span class="dot" style="background:#ff70a6"></span> Tallahassee <span style="font-size:0.7em;color:var(--muted);margin-left:3px;">(FHFA)</span>
-      </button>
-    </div>
-
-    <div class="chart-box"><canvas id="cityChart"></canvas></div>
-
-    <div id="cityPriceSection" style="display:none">
-      <div style="margin:28px 0 14px;">
-        <div style="font-size:1.0rem;font-weight:700;color:var(--text);margin-bottom:4px;">Estimated Median Home Price</div>
-        <div style="font-size:0.78rem;color:var(--muted);">
-          Each city&rsquo;s home-price index scaled to dollars so its latest reading matches an approximate 2025 metro median sale price.
-          Values are nominal (then-current) dollars. &nbsp;&middot;&nbsp; shares the timeframe and legend toggles above
+        <div id="cityPriceSection" style="display:none">
+          <div style="margin:28px 0 14px;">
+            <div style="font-size:1.0rem;font-weight:700;color:var(--text);margin-bottom:4px;">Estimated Median Home Price</div>
+            <div style="font-size:0.78rem;color:var(--muted);">
+              Each city&rsquo;s home-price index scaled to dollars so its latest reading matches an approximate 2025 metro median sale price.
+              Values are nominal (then-current) dollars. &nbsp;&middot;&nbsp; shares the timeframe and city toggles on the left
+            </div>
+          </div>
+          <div class="chart-box"><canvas id="cityPriceChart"></canvas></div>
         </div>
       </div>
-      <div class="chart-box"><canvas id="cityPriceChart"></canvas></div>
     </div>
   </div>
   </div>
