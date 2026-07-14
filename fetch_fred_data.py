@@ -32,6 +32,9 @@ SERIES = {
     'mortgage': {'id': 'MORTGAGE30US', 'start': 1971, 'yoy': False},
     'hpi':      {'id': 'CSUSHPISA',    'start': 1986, 'yoy': True},  # S&P/Case-Shiller, monthly from Jan 1987
     'nasdaq':   {'id': 'NASDAQCOM',   'start': 1970, 'yoy': True},  # NASDAQ Composite (from 1971)
+    # Raw price levels for the Overview levels chart (same sources, no YoY transform)
+    'hpi_level':    {'id': 'CSUSHPISA', 'start': 1986, 'yoy': False},
+    'nasdaq_level': {'id': 'NASDAQCOM', 'start': 1970, 'yoy': False},
     # S&P 500 is fetched separately below — FRED's own SP500 series is licensed
     # to only ~10yr of trailing history, far shorter than our other series.
     # City-level HPI (trailing YoY %)
@@ -42,6 +45,14 @@ SERIES = {
     'hpi_atl':  {'id': 'ATXRSA',         'start': 1991, 'yoy': True},            # S&P/Case-Shiller Atlanta
     'hpi_aus':  {'id': 'ATNHPIUS12420Q', 'start': 1990, 'yoy': True, 'freq': 'q'},  # FHFA Austin (quarterly)
     'hpi_tal':  {'id': 'ATNHPIUS45220Q', 'start': 1990, 'yoy': True, 'freq': 'q'},  # FHFA Tallahassee (quarterly)
+    # City-level HPI raw index levels (for the estimated-price levels chart)
+    'hpi_sf_level':  {'id': 'SFXRSA',         'start': 1990, 'yoy': False},
+    'hpi_sd_level':  {'id': 'SDXRSA',         'start': 1990, 'yoy': False},
+    'hpi_sea_level': {'id': 'SEXRSA',         'start': 1990, 'yoy': False},
+    'hpi_dal_level': {'id': 'DAXRSA',         'start': 2000, 'yoy': False},
+    'hpi_atl_level': {'id': 'ATXRSA',         'start': 1991, 'yoy': False},
+    'hpi_aus_level': {'id': 'ATNHPIUS12420Q', 'start': 1990, 'yoy': False, 'freq': 'q'},
+    'hpi_tal_level': {'id': 'ATNHPIUS45220Q', 'start': 1990, 'yoy': False, 'freq': 'q'},
     # City-level CPI for Rent of Primary Residence (index, 1982-84=100).
     # Monthly CUUR* series; San Diego is only published semiannually (CUUS*).
     'rent_sf':  {'id': 'CUURA422SAH1', 'start': 1990, 'yoy': False},               # SF-Oakland area
@@ -133,10 +144,12 @@ print('  SP500 (Shiller/GitHub mirror)...', end=' ', flush=True)
 try:
     raw = fetch_sp500_history(SP500_START_YEAR)
     output['sp500'] = yoy_monthly(raw)
+    output['sp500_level'] = raw
     print(f'{output["sp500"][0]["date"]}–{output["sp500"][-1]["date"]}  ({len(output["sp500"])} records)')
 except Exception as exc:
     print(f'SKIPPED — {exc}')
     output['sp500'] = []
+    output['sp500_level'] = []
 
 with open('fred_data.json', 'w') as f:
     json.dump(output, f)

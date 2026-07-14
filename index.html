@@ -171,7 +171,7 @@
     .card.ndq .card-value { color: var(--ndq); }
     .card.spx .card-value { color: var(--spx); }
     .card-sub { font-size: 0.7rem; color: var(--muted); }
-    .card-year { font-size: 0.68rem; color: #3d4460; position: absolute; top: 10px; right: 12px; }
+    .card-year { color: #4a5170; }
 
     /* ── Chart panel ── */
     .chart-panel {
@@ -502,34 +502,29 @@
     <!-- Stat cards -->
     <div class="cards" id="cards">
       <div class="card hpi">
-        <span class="card-year" id="hpiYear"></span>
         <div class="card-label">House Price Index</div>
         <div class="card-value" id="hpiVal">—</div>
-        <div class="card-sub">Trailing YoY</div>
+        <div class="card-sub">Trailing YoY &middot; <span class="card-year" id="hpiYear"></span></div>
       </div>
       <div class="card cpi">
-        <span class="card-year" id="cpiYear"></span>
         <div class="card-label">Inflation Rate (CPI)</div>
         <div class="card-value" id="cpiVal">—</div>
-        <div class="card-sub">Trailing YoY</div>
+        <div class="card-sub">Trailing YoY &middot; <span class="card-year" id="cpiYear"></span></div>
       </div>
       <div class="card mrt">
-        <span class="card-year" id="mrtYear"></span>
         <div class="card-label">30-Yr Mortgage Rate</div>
         <div class="card-value" id="mrtVal">—</div>
-        <div class="card-sub">Monthly average</div>
+        <div class="card-sub">Monthly average &middot; <span class="card-year" id="mrtYear"></span></div>
       </div>
       <div class="card ndq">
-        <span class="card-year" id="ndqYear"></span>
         <div class="card-label">NASDAQ Composite</div>
         <div class="card-value" id="ndqVal">—</div>
-        <div class="card-sub">Trailing YoY</div>
+        <div class="card-sub">Trailing YoY &middot; <span class="card-year" id="ndqYear"></span></div>
       </div>
       <div class="card spx">
-        <span class="card-year" id="spxYear"></span>
         <div class="card-label">S&amp;P 500</div>
         <div class="card-value" id="spxVal">—</div>
-        <div class="card-sub">Trailing YoY</div>
+        <div class="card-sub">Trailing YoY &middot; <span class="card-year" id="spxYear"></span></div>
       </div>
     </div>
     <div class="controls">
@@ -566,6 +561,17 @@
     </div>
 
     <div class="chart-box"><canvas id="chart"></canvas></div>
+
+    <div id="levelsSection" style="display:none">
+      <div style="margin:28px 0 14px;">
+        <div style="font-size:1.0rem;font-weight:700;color:var(--text);margin-bottom:4px;">Price Levels &mdash; Growth of $100</div>
+        <div style="font-size:0.78rem;color:var(--muted);">
+          Each series rebased to $100 at the start of the selected range (or its first available data) &nbsp;&middot;&nbsp; log scale &nbsp;&middot;&nbsp;
+          shares the timeframe and legend toggles above
+        </div>
+      </div>
+      <div class="chart-box"><canvas id="levelsChart"></canvas></div>
+    </div>
   </div>
   </div>
 
@@ -616,6 +622,17 @@
     </div>
 
     <div class="chart-box"><canvas id="cityChart"></canvas></div>
+
+    <div id="cityPriceSection" style="display:none">
+      <div style="margin:28px 0 14px;">
+        <div style="font-size:1.0rem;font-weight:700;color:var(--text);margin-bottom:4px;">Estimated Median Home Price</div>
+        <div style="font-size:0.78rem;color:var(--muted);">
+          Each city&rsquo;s home-price index scaled to dollars so its latest reading matches an approximate 2025 metro median sale price.
+          Values are nominal (then-current) dollars. &nbsp;&middot;&nbsp; shares the timeframe and legend toggles above
+        </div>
+      </div>
+      <div class="chart-box"><canvas id="cityPriceChart"></canvas></div>
+    </div>
   </div>
   </div>
 
@@ -714,8 +731,8 @@
   // ── Tab navigation ──────────────────────────────────────────────────────────
 
   const TAB_CHARTS = {
-    overview: () => [chart],
-    homes:    () => [cityChart],
+    overview: () => [chart, levelsChart],
+    homes:    () => [cityChart, cityPriceChart],
     rents:    () => [rentChart],
     calc:     () => [],
   };
@@ -826,6 +843,17 @@
       document.getElementById('chartPanel').style.display = 'block';
       initSlider();
       buildChart();
+
+      // Price-levels companion chart (shares range + legend toggles)
+      levelsStore = {
+        hpi:    data.hpi_level    || [],
+        nasdaq: data.nasdaq_level || [],
+        sp500:  data.sp500_level  || [],
+      };
+      if (Object.values(levelsStore).some(a => a.length)) {
+        document.getElementById('levelsSection').style.display = '';
+        buildLevelsChart();
+      }
       attachCanvasEvents();
 
       // City HPI chart
@@ -842,6 +870,16 @@
         document.getElementById('cityChartPanel').style.display = 'block';
         initCitySlider();
         buildCityChart();
+      }
+
+      // City home-price levels (estimated dollars), shares the city slider + toggles
+      cityPriceStore = {};
+      CITIES.forEach(c => {
+        cityPriceStore[c.key] = scaleRentToDollars(data[c.key + '_level'] || [], c.anchor);
+      });
+      if (Object.values(cityPriceStore).some(arr => arr.length > 0)) {
+        document.getElementById('cityPriceSection').style.display = '';
+        buildCityPriceChart();
       }
 
       // City Rental Price chart — convert index to estimated dollars up front
@@ -1097,19 +1135,28 @@
       },
     ];
     chart.update(noAnim ? 'none' : undefined);
+    refreshLevelsChart(noAnim);
   }
 
   function attachCanvasEvents() {
-    const canvas = document.getElementById('chart');
+    attachOverviewPanZoom('chart',       () => chart);
+    attachOverviewPanZoom('levelsChart', () => levelsChart);
+  }
+
+  // Both Overview canvases drive the same rangeStart/rangeEnd, so panning or
+  // zooming either one updates both charts and the slider together.
+  function attachOverviewPanZoom(canvasId, getChart) {
+    const canvas = document.getElementById(canvasId);
     canvas.style.cursor = 'grab';
     let pan = null;
 
-    // Scroll wheel / vertical drag to zoom
+    // Scroll wheel to zoom
     canvas.addEventListener('wheel', e => {
-      if (!chart || !chart.chartArea) return;
+      const ch = getChart();
+      if (!ch || !ch.chartArea) return;
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
-      const { left, right } = chart.chartArea;
+      const { left, right } = ch.chartArea;
       if (mx < left || mx > right) return;
       e.preventDefault();
 
@@ -1123,7 +1170,7 @@
       const ns = Math.max(dataMin, Math.min(dataMax - newSpan, Math.round(pivot - f * newSpan)));
       rangeStart = ns;
       rangeEnd = ns + newSpan;
-      document.getElementById('rangeDisplay').textContent = rangeStart + '\u2013' + rangeEnd;
+      document.getElementById('rangeDisplay').textContent = rangeStart + '–' + rangeEnd;
       syncPresetButtons();
       refreshChart(true);
       // Sync slider without triggering a second refresh
@@ -1133,26 +1180,31 @@
     }, { passive: false });
 
     canvas.addEventListener('mousedown', e => {
-      if (!chart || !chart.chartArea) return;
+      const ch = getChart();
+      if (!ch || !ch.chartArea) return;
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
-      const { left, right } = chart.chartArea;
+      const { left, right } = ch.chartArea;
       if (mx < left || mx > right) return;
 
-      // Lock y-axis to current visible range so it doesn't jitter during pan
-      const allVis = [
-        ...filteredSeries(store.hpi).map(d => d.value),
-        ...filteredSeries(store.cpi).map(d => d.value),
-        ...filteredSeries(store.mortgage).map(d => d.value),
-        ...filteredSeries(store.nasdaq).map(d => d.value),
-      ].filter(v => v != null);
-      if (allVis.length) {
-        const yMin = Math.min(...allVis);
-        const yMax = Math.max(...allVis);
-        const pad = (yMax - yMin) * 0.12;
-        chart.options.scales.y.min = Math.floor(yMin - pad);
-        chart.options.scales.y.max = Math.ceil(yMax + pad);
+      if (canvasId === 'chart') {
+        // Lock y-axis to current visible range so it doesn't jitter during pan
+        const allVis = [
+          ...filteredSeries(store.hpi).map(d => d.value),
+          ...filteredSeries(store.cpi).map(d => d.value),
+          ...filteredSeries(store.mortgage).map(d => d.value),
+          ...filteredSeries(store.nasdaq).map(d => d.value),
+        ].filter(v => v != null);
+        if (allVis.length) {
+          const yMin = Math.min(...allVis);
+          const yMax = Math.max(...allVis);
+          const pad = (yMax - yMin) * 0.12;
+          chart.options.scales.y.min = Math.floor(yMin - pad);
+          chart.options.scales.y.max = Math.ceil(yMax + pad);
+        }
       }
+      // Keep the levels chart's $100 rebase anchors fixed while panning
+      freezeLevelsBases();
 
       _panActive = true;
       pan = { startX: e.clientX, rs: rangeStart, re: rangeEnd };
@@ -1161,16 +1213,17 @@
     });
 
     window.addEventListener('mousemove', e => {
-      if (!pan || !chart || !chart.chartArea) return;
+      const ch = getChart();
+      if (!pan || !ch || !ch.chartArea) return;
       const dx = e.clientX - pan.startX;
-      const w = chart.chartArea.right - chart.chartArea.left;
+      const w = ch.chartArea.right - ch.chartArea.left;
       const span = pan.re - pan.rs;
       const delta = Math.round((dx / w) * span);
       const ns = Math.max(dataMin, Math.min(dataMax - span, pan.rs - delta));
       const ne = ns + span;
       if (ns === rangeStart) return;
       rangeStart = ns; rangeEnd = ne;
-      document.getElementById('rangeDisplay').textContent = rangeStart + '\u2013' + rangeEnd;
+      document.getElementById('rangeDisplay').textContent = rangeStart + '–' + rangeEnd;
       syncPresetButtons();
       refreshChart(true); // instant update, no animation
     });
@@ -1179,26 +1232,168 @@
       if (!pan) return;
       pan = null;
       _panActive = false;
+      _levelsFrozenBases = null;
       canvas.style.cursor = 'grab';
       // Release y-axis lock
       chart.options.scales.y.min = undefined;
       chart.options.scales.y.max = undefined;
-      // Sync slider to final position (triggers display update only)
+      // Sync slider to final position (triggers a full refresh that re-anchors)
       document.getElementById('yearSlider').noUiSlider.set([rangeStart, rangeEnd]);
     };
     window.addEventListener('mouseup', endPan);
     window.addEventListener('mouseleave', endPan);
   }
 
+  // ── Price Levels Chart (Overview companion, growth of $100) ────────────────
+  // toggleIdx ties each series to the main chart's legend toggle indices.
+  const LEVELS_SERIES = [
+    { key: 'hpi',    label: 'House Price (Case-Shiller)', color: '#4fc3f7', bg: 'rgba(79,195,247,0.06)',  toggleIdx: 0 },
+    { key: 'nasdaq', label: 'NASDAQ Composite',           color: '#ffd166', bg: 'rgba(255,209,102,0.06)', toggleIdx: 3 },
+    { key: 'sp500',  label: 'S&P 500',                    color: '#2ec4b6', bg: 'rgba(46,196,182,0.06)',  toggleIdx: 4 },
+  ];
+  let levelsStore = { hpi: [], nasdaq: [], sp500: [] };
+  let levelsChart = null;
+  let _levelsFrozenBases = null;   // { key: baseValue } while panning
+
+  function freezeLevelsBases() {
+    _levelsFrozenBases = {};
+    LEVELS_SERIES.forEach(s => {
+      const arr = filteredSeries(levelsStore[s.key]);
+      if (arr.length) _levelsFrozenBases[s.key] = arr[0].value;
+    });
+  }
+
+  function buildLevelsChart() {
+    if (levelsChart) { levelsChart.destroy(); levelsChart = null; }
+    const ctx = document.getElementById('levelsChart').getContext('2d');
+    levelsChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 200 },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          negZone: false,   // red/green zero shading is meaningless on a log scale
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(12,15,28,0.88)',
+            titleColor: '#e4e6f0',
+            bodyColor: '#b0b8d8',
+            borderColor: 'rgba(255,255,255,0.12)',
+            borderWidth: 1,
+            padding: 16,
+            cornerRadius: 10,
+            boxWidth: 10,
+            boxHeight: 10,
+            usePointStyle: false,
+            titleFont: { size: 13, weight: '700' },
+            bodyFont: { size: 12.5 },
+            itemSort: () => 0,
+            callbacks: {
+              title: items => fmtDate(items[0]?.label || ''),
+              label: c => {
+                if (c.parsed.y === null) return '  ' + c.dataset.label + ':  N/A';
+                const actual = c.dataset._actuals?.[c.dataIndex];
+                return '  ' + c.dataset.label + ':  $' + Math.round(c.parsed.y).toLocaleString('en-US')
+                  + (actual != null ? '   (level ' + Math.round(actual).toLocaleString('en-US') + ')' : '');
+              },
+              labelColor: c => ({ borderColor: c.dataset.borderColor, backgroundColor: c.dataset.borderColor }),
+            },
+          },
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: '#8890b0', autoSkip: false, maxRotation: 45,
+              font: { size: 12, weight: '500' },
+              callback: function(val) {
+                const label = this.getLabelForValue(val);
+                if (!label || !label.includes('-')) return label;
+                const [year, month] = label.split('-');
+                const allLabels = this.chart.data.labels;
+                const spanYears = allLabels && allLabels.length > 1
+                  ? parseInt(allLabels[allLabels.length - 1]) - parseInt(allLabels[0]) : 0;
+                if (spanYears > 8) {
+                  if (month !== '01') return null;
+                  const step = spanYears >= 50 ? 3 : spanYears >= 30 ? 2 : 1;
+                  return parseInt(year) % step === 0 ? year : null;
+                } else {
+                  return parseInt(month) % 3 === 1 ? MONTH_NAMES[parseInt(month) - 1] + ' ' + year : null;
+                }
+              },
+            },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            border: { color: '#3a4060', display: true },
+          },
+          y: {
+            type: 'logarithmic',
+            ticks: {
+              color: '#8890b0',
+              font: { size: 12, weight: '500' },
+              callback: v => {
+                const mag = Math.pow(10, Math.floor(Math.log10(v)));
+                const m = v / mag;
+                if (m !== 1 && m !== 2 && m !== 5) return null;
+                return '$' + (v >= 1000 ? (v / 1000).toLocaleString('en-US') + 'k' : v);
+              },
+            },
+            grid: { color: 'rgba(255,255,255,0.07)', lineWidth: 1 },
+            border: { color: '#3a4060', display: true },
+            title: {
+              display: true,
+              text: 'Growth of $100 (log scale)',
+              color: '#6b7194',
+              font: { size: 11 },
+            },
+          },
+        },
+      },
+    });
+    refreshLevelsChart();
+  }
+
+  function refreshLevelsChart(noAnim) {
+    if (!levelsChart) return;
+    const filt = LEVELS_SERIES.map(s => filteredSeries(levelsStore[s.key]));
+    const dates = [...new Set(filt.flatMap(arr => arr.map(d => d.date)))].sort();
+    levelsChart._cx = null;
+    levelsChart.data.labels = dates;
+    levelsChart.data.datasets = LEVELS_SERIES.map((s, i) => {
+      const arr = filt[i];
+      const base = (_levelsFrozenBases && _levelsFrozenBases[s.key]) || (arr.length ? arr[0].value : 1);
+      const map = new Map(arr.map(d => [d.date, d.value]));
+      const actuals = dates.map(d => map.get(d) ?? null);
+      return {
+        label: s.label,
+        data: actuals.map(v => v === null ? null : +(v / base * 100).toFixed(2)),
+        _actuals: actuals,
+        hidden: hiddenSeries.has(s.toggleIdx),
+        borderColor: s.color,
+        backgroundColor: s.bg,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        tension: 0.2,
+        fill: false,
+        spanGaps: true,
+      };
+    });
+    levelsChart.update(noAnim ? 'none' : undefined);
+  }
+
   // ── City Housing Price Index Chart ────────────────────────────────────────
+  // `anchor` = approximate 2025 metro median sale price ($), used to scale the
+  // price index into estimated dollars for the companion price chart.
   const CITIES = [
-    { key: 'hpi_sf',  label: 'San Francisco', color: '#4fc3f7', bg: 'rgba(79,195,247,0.06)'  },
-    { key: 'hpi_sd',  label: 'San Diego',     color: '#ff9f43', bg: 'rgba(255,159,67,0.06)'  },
-    { key: 'hpi_sea', label: 'Seattle',        color: '#6bcb77', bg: 'rgba(107,203,119,0.06)' },
-    { key: 'hpi_dal', label: 'Dallas',         color: '#ffd166', bg: 'rgba(255,209,102,0.06)' },
-    { key: 'hpi_atl', label: 'Atlanta',        color: '#c77dff', bg: 'rgba(199,125,255,0.06)' },
-    { key: 'hpi_aus', label: 'Austin',         color: '#ff6b6b', bg: 'rgba(255,107,107,0.06)' },
-    { key: 'hpi_tal', label: 'Tallahassee',    color: '#ff70a6', bg: 'rgba(255,112,166,0.06)' },
+    { key: 'hpi_sf',  label: 'San Francisco', anchor: 1250000, color: '#4fc3f7', bg: 'rgba(79,195,247,0.06)'  },
+    { key: 'hpi_sd',  label: 'San Diego',     anchor: 900000,  color: '#ff9f43', bg: 'rgba(255,159,67,0.06)'  },
+    { key: 'hpi_sea', label: 'Seattle',        anchor: 780000,  color: '#6bcb77', bg: 'rgba(107,203,119,0.06)' },
+    { key: 'hpi_dal', label: 'Dallas',         anchor: 390000,  color: '#ffd166', bg: 'rgba(255,209,102,0.06)' },
+    { key: 'hpi_atl', label: 'Atlanta',        anchor: 380000,  color: '#c77dff', bg: 'rgba(199,125,255,0.06)' },
+    { key: 'hpi_aus', label: 'Austin',         anchor: 480000,  color: '#ff6b6b', bg: 'rgba(255,107,107,0.06)' },
+    { key: 'hpi_tal', label: 'Tallahassee',    anchor: 310000,  color: '#ff70a6', bg: 'rgba(255,112,166,0.06)' },
   ];
 
   let cityStore = {};
@@ -1206,6 +1401,10 @@
   let cityRangeStart, cityRangeEnd, cityDataMin, cityDataMax;
   const cityHidden = new Set();
   let _cityPanActive = false;
+
+  // Companion estimated-price chart (shares cityStore's slider + toggles)
+  let cityPriceStore = {};
+  let cityPriceChart = null;
 
   function filteredCity(series) {
     return series.filter(d => {
@@ -1372,18 +1571,28 @@
       };
     });
     cityChart.update(noAnim ? 'none' : undefined);
+    refreshCityPriceChart(noAnim);
   }
 
   function attachCityCanvasEvents() {
-    const canvas = document.getElementById('cityChart');
+    attachCityPanZoom('cityChart',      () => cityChart);
+    attachCityPanZoom('cityPriceChart', () => cityPriceChart);
+  }
+
+  // Both City-tab canvases drive the same cityRangeStart/cityRangeEnd, so panning
+  // or zooming either one moves both charts and the slider together.
+  function attachCityPanZoom(canvasId, getChart) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
     canvas.style.cursor = 'grab';
     let pan = null;
 
     canvas.addEventListener('wheel', e => {
-      if (!cityChart || !cityChart.chartArea) return;
+      const ch = getChart();
+      if (!ch || !ch.chartArea) return;
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
-      const { left, right } = cityChart.chartArea;
+      const { left, right } = ch.chartArea;
       if (mx < left || mx > right) return;
       e.preventDefault();
       const f = (mx - left) / (right - left);
@@ -1396,7 +1605,7 @@
       const ns = Math.max(cityDataMin, Math.min(cityDataMax - newSpan, Math.round(pivot - f * newSpan)));
       cityRangeStart = ns;
       cityRangeEnd = ns + newSpan;
-      document.getElementById('cityRangeDisplay').textContent = cityRangeStart + '\u2013' + cityRangeEnd;
+      document.getElementById('cityRangeDisplay').textContent = cityRangeStart + '–' + cityRangeEnd;
       syncCityPresets();
       refreshCityChart(true);
       _cityPanActive = true;
@@ -1405,18 +1614,21 @@
     }, { passive: false });
 
     canvas.addEventListener('mousedown', e => {
-      if (!cityChart || !cityChart.chartArea) return;
+      const ch = getChart();
+      if (!ch || !ch.chartArea) return;
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
-      const { left, right } = cityChart.chartArea;
+      const { left, right } = ch.chartArea;
       if (mx < left || mx > right) return;
-      const allVis = CITIES.flatMap(c => filteredCity(cityStore[c.key] || []).map(d => d.value)).filter(v => v != null);
+      // Lock this chart's y-axis to its own visible range so it doesn't jitter
+      const srcStore = canvasId === 'cityPriceChart' ? cityPriceStore : cityStore;
+      const allVis = CITIES.flatMap(c => filteredCity(srcStore[c.key] || []).map(d => d.value)).filter(v => v != null);
       if (allVis.length) {
         const yMin = Math.min(...allVis);
         const yMax = Math.max(...allVis);
         const pad = (yMax - yMin) * 0.12;
-        cityChart.options.scales.y.min = Math.floor(yMin - pad);
-        cityChart.options.scales.y.max = Math.ceil(yMax + pad);
+        ch.options.scales.y.min = Math.floor(yMin - pad);
+        ch.options.scales.y.max = Math.ceil(yMax + pad);
       }
       _cityPanActive = true;
       pan = { startX: e.clientX, rs: cityRangeStart, re: cityRangeEnd };
@@ -1425,16 +1637,17 @@
     });
 
     window.addEventListener('mousemove', e => {
-      if (!pan || !cityChart || !cityChart.chartArea) return;
+      const ch = getChart();
+      if (!pan || !ch || !ch.chartArea) return;
       const dx = e.clientX - pan.startX;
-      const w = cityChart.chartArea.right - cityChart.chartArea.left;
+      const w = ch.chartArea.right - ch.chartArea.left;
       const span = pan.re - pan.rs;
       const delta = Math.round((dx / w) * span);
       const ns = Math.max(cityDataMin, Math.min(cityDataMax - span, pan.rs - delta));
       const ne = ns + span;
       if (ns === cityRangeStart) return;
       cityRangeStart = ns; cityRangeEnd = ne;
-      document.getElementById('cityRangeDisplay').textContent = cityRangeStart + '\u2013' + cityRangeEnd;
+      document.getElementById('cityRangeDisplay').textContent = cityRangeStart + '–' + cityRangeEnd;
       syncCityPresets();
       refreshCityChart(true);
     });
@@ -1444,12 +1657,120 @@
       pan = null;
       _cityPanActive = false;
       canvas.style.cursor = 'grab';
-      cityChart.options.scales.y.min = undefined;
-      cityChart.options.scales.y.max = undefined;
+      if (cityChart) { cityChart.options.scales.y.min = undefined; cityChart.options.scales.y.max = undefined; }
+      if (cityPriceChart) { cityPriceChart.options.scales.y.min = undefined; cityPriceChart.options.scales.y.max = undefined; }
       document.getElementById('cityYearSlider').noUiSlider.set([cityRangeStart, cityRangeEnd]);
     };
     window.addEventListener('mouseup', endCityPan);
     window.addEventListener('mouseleave', endCityPan);
+  }
+
+  // ── City Home Price Chart (estimated median sale price, $) ─────────────────
+  function buildCityPriceChart() {
+    if (cityPriceChart) { cityPriceChart.destroy(); cityPriceChart = null; }
+    const ctx = document.getElementById('cityPriceChart').getContext('2d');
+    cityPriceChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 200 },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          negZone: false,
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(12,15,28,0.88)',
+            titleColor: '#e4e6f0',
+            bodyColor: '#b0b8d8',
+            borderColor: 'rgba(255,255,255,0.12)',
+            borderWidth: 1,
+            padding: 16,
+            cornerRadius: 10,
+            boxWidth: 10,
+            boxHeight: 10,
+            usePointStyle: false,
+            titleFont: { size: 13, weight: '700' },
+            bodyFont: { size: 12.5 },
+            itemSort: () => 0,
+            callbacks: {
+              title: items => fmtDate(items[0]?.label || ''),
+              label: c => c.parsed.y !== null
+                ? '  ' + c.dataset.label + ':  ' + fmtUSD(c.parsed.y)
+                : '  ' + c.dataset.label + ':  N/A',
+              labelColor: c => ({ borderColor: c.dataset.borderColor, backgroundColor: c.dataset.borderColor }),
+            },
+          },
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: '#8890b0', autoSkip: false, maxRotation: 45,
+              font: { size: 12, weight: '500' },
+              callback: function(val) {
+                const label = this.getLabelForValue(val);
+                if (!label || !label.includes('-')) return label;
+                const [year, month] = label.split('-');
+                const allLabels = this.chart.data.labels;
+                const spanYears = allLabels && allLabels.length > 1
+                  ? parseInt(allLabels[allLabels.length - 1]) - parseInt(allLabels[0]) : 0;
+                if (spanYears > 8) {
+                  if (month !== '01') return null;
+                  const step = spanYears >= 50 ? 3 : spanYears >= 30 ? 2 : 1;
+                  return parseInt(year) % step === 0 ? year : null;
+                } else {
+                  return parseInt(month) % 3 === 1 ? MONTH_NAMES[parseInt(month) - 1] + ' ' + year : null;
+                }
+              },
+            },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            border: { color: '#3a4060', display: true },
+          },
+          y: {
+            ticks: {
+              color: '#8890b0',
+              font: { size: 12, weight: '500' },
+              callback: v => '$' + (v >= 1000 ? Math.round(v / 1000).toLocaleString('en-US') + 'k' : v),
+            },
+            grid: { color: 'rgba(255,255,255,0.07)', lineWidth: 1 },
+            border: { color: '#3a4060', display: true },
+            title: {
+              display: true,
+              text: 'Est. median home price (nominal $)',
+              color: '#6b7194',
+              font: { size: 11 },
+            },
+          },
+        },
+      },
+    });
+    refreshCityPriceChart();
+  }
+
+  function refreshCityPriceChart(noAnim) {
+    if (!cityPriceChart) return;
+    const filtered = CITIES.map(c => filteredCity(cityPriceStore[c.key] || []));
+    const dates = [...new Set(filtered.flatMap(arr => arr.map(d => d.date)))].sort();
+    cityPriceChart._cx = null;
+    cityPriceChart.data.labels = dates;
+    cityPriceChart.data.datasets = CITIES.map((c, i) => {
+      const map = new Map(filtered[i].map(d => [d.date, d.value]));
+      return {
+        label: c.label,
+        data: dates.map(d => map.get(d) ?? null),
+        hidden: cityHidden.has(i),
+        borderColor: c.color,
+        backgroundColor: c.bg,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        tension: 0.2,
+        fill: false,
+        spanGaps: true,
+      };
+    });
+    cityPriceChart.update(noAnim ? 'none' : undefined);
   }
 
   // ── City Rents Chart ───────────────────────────────────────────────────────
