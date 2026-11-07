@@ -23,10 +23,13 @@ from urllib.parse import urlencode
 SP500_HISTORY_URL = 'https://raw.githubusercontent.com/datasets/s-and-p-500/main/data/data.csv'
 SP500_START_YEAR = 1946  # matches CPI, the earliest-starting series on the main chart
 
-# Costco (COST) monthly close from Yahoo Finance — FRED does not carry
-# individual equities. Trades since Jul 1986.
-COST_SYMBOL = 'COST'
-COST_START_YEAR = 1986
+# Equities and ETFs from Yahoo Finance — FRED does not carry them.
+# (key, ticker, first year to request)
+YAHOO_SERIES = [
+    ('cost', 'COST', 1986),  # Costco, trades since Jul 1986
+    ('rsp',  'RSP',  2003),  # Invesco S&P 500 Equal Weight ETF, since Apr 2003
+    ('wmt',  'WMT',  1972),  # Walmart, NYSE since 1972
+]
 
 API_KEY = os.environ.get('FRED_API_KEY', '')
 if not API_KEY:
@@ -175,16 +178,17 @@ except Exception as exc:
     output['sp500'] = []
     output['sp500_level'] = []
 
-print('  COST (Yahoo Finance)...', end=' ', flush=True)
-try:
-    raw = fetch_yahoo_monthly(COST_SYMBOL, COST_START_YEAR)
-    output['cost'] = yoy_monthly(raw)
-    output['cost_level'] = raw
-    print(f'{output["cost"][0]["date"]}–{output["cost"][-1]["date"]}  ({len(output["cost"])} records)')
-except Exception as exc:
-    print(f'SKIPPED — {exc}')
-    output['cost'] = []
-    output['cost_level'] = []
+for key, symbol, start_year in YAHOO_SERIES:
+    print(f'  {symbol} (Yahoo Finance)...', end=' ', flush=True)
+    try:
+        raw = fetch_yahoo_monthly(symbol, start_year)
+        output[key] = yoy_monthly(raw)
+        output[key + '_level'] = raw
+        print(f'{output[key][0]["date"]}–{output[key][-1]["date"]}  ({len(output[key])} records)')
+    except Exception as exc:
+        print(f'SKIPPED — {exc}')
+        output[key] = []
+        output[key + '_level'] = []
 
 with open('fred_data.json', 'w') as f:
     json.dump(output, f)

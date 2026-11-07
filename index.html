@@ -33,6 +33,8 @@
       --ndq:       #ffd166;
       --spx:       #2ec4b6;
       --cst:       #c77dff;
+      --rsp:       #ff9f43;
+      --wmt:       #ff70a6;
     }
 
     body {
@@ -146,7 +148,7 @@
     /* ── Stat cards (inside chart panel) ── */
     .cards {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 10px;
       margin-bottom: 18px;
     }
@@ -179,6 +181,8 @@
     .card.ndq::before { background: var(--ndq); }
     .card.spx::before { background: var(--spx); }
     .card.cst::before { background: var(--cst); }
+    .card.rsp::before { background: var(--rsp); }
+    .card.wmt::before { background: var(--wmt); }
     .card:hover { border-color: #353c55; }
 
     .card-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
@@ -189,6 +193,8 @@
     .card.ndq .card-value { color: var(--ndq); }
     .card.spx .card-value { color: var(--spx); }
     .card.cst .card-value { color: var(--cst); }
+    .card.rsp .card-value { color: var(--rsp); }
+    .card.wmt .card-value { color: var(--wmt); }
     .card-sub { font-size: 0.7rem; color: var(--muted); }
     .card-year { color: #4a5170; }
 
@@ -582,6 +588,16 @@
         <div class="card-value" id="cstVal">—</div>
         <div class="card-sub"><span id="cstPrice"></span> &middot; <span class="card-year" id="cstYear"></span></div>
       </div>
+      <div class="card rsp">
+        <div class="card-label">S&amp;P Equal Weight (RSP)</div>
+        <div class="card-value" id="rspVal">—</div>
+        <div class="card-sub"><span id="rspPrice"></span> &middot; <span class="card-year" id="rspYear"></span></div>
+      </div>
+      <div class="card wmt">
+        <div class="card-label">Walmart (WMT)</div>
+        <div class="card-value" id="wmtVal">—</div>
+        <div class="card-sub"><span id="wmtPrice"></span> &middot; <span class="card-year" id="wmtYear"></span></div>
+      </div>
     </div>
     <div class="chart-workspace">
       <aside class="chart-side">
@@ -620,6 +636,12 @@
             </button>
             <button class="toggle-btn" id="tog-cst" onclick="toggleSeries(5)">
               <span class="dot" style="background:#c77dff"></span> Costco / COST (Trailing YoY)
+            </button>
+            <button class="toggle-btn" id="tog-rsp" onclick="toggleSeries(6)">
+              <span class="dot" style="background:#ff9f43"></span> S&amp;P Equal Weight / RSP (Trailing YoY)
+            </button>
+            <button class="toggle-btn" id="tog-wmt" onclick="toggleSeries(7)">
+              <span class="dot" style="background:#ff70a6"></span> Walmart / WMT (Trailing YoY)
             </button>
           </div>
         </div>
@@ -795,6 +817,8 @@
     <span class="footer-sep">·</span>
     <a href="https://github.com/datasets/s-and-p-500" target="_blank" rel="noopener">S&amp;P 500 (Shiller data)</a>
     <span class="footer-sep">·</span>
+    <span>COST, RSP, WMT: Yahoo Finance</span>
+    <span class="footer-sep">·</span>
     <span>Source: Federal Reserve Bank of St. Louis (FRED)</span>
   </div>
   <div class="footer" style="margin-top:4px; color:#2e3350;">
@@ -833,7 +857,7 @@
     showTab(location.hash.slice(1) || 'overview', false));
 
   let rangeStart, rangeEnd, dataMin, dataMax;
-  let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [], sp500: [], cost: [] };
+  let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [], sp500: [], cost: [], rsp: [], wmt: [] };
   let chart = null;
   const hiddenSeries = new Set();
   let _panActive = false;
@@ -948,7 +972,7 @@
       const res = await fetch('fred_data.json');
       if (!res.ok) throw new Error();
       const data = await res.json();
-      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, nasdaq: data.nasdaq || [], sp500: data.sp500 || [], cost: data.cost || [] };
+      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, nasdaq: data.nasdaq || [], sp500: data.sp500 || [], cost: data.cost || [], rsp: data.rsp || [], wmt: data.wmt || [] };
 
       if (data.fetched_at) {
         document.getElementById('fetchedOn').textContent = data.fetched_at;
@@ -967,10 +991,15 @@
         nasdaq: data.nasdaq_level || [],
         sp500:  data.sp500_level  || [],
         cost:   data.cost_level   || [],
+        rsp:    data.rsp_level    || [],
+        wmt:    data.wmt_level    || [],
       };
-      // Costco card shows current share price alongside its YoY growth
-      const cst = last(levelsStore.cost);
-      if (cst) document.getElementById('cstPrice').textContent = fmtUSD(cst.value);
+      // Equity cards show the latest close alongside trailing YoY
+      const priceIds = { cost: 'cstPrice', rsp: 'rspPrice', wmt: 'wmtPrice' };
+      Object.entries(priceIds).forEach(([key, id]) => {
+        const pt = last(levelsStore[key]);
+        if (pt) document.getElementById(id).textContent = fmtUSD(pt.value);
+      });
       const hasLevels = Object.values(levelsStore).some(a => a.length);
       if (hasLevels) document.getElementById('levelsSection').style.display = '';
       buildChart();
@@ -1046,11 +1075,12 @@
       document.getElementById('spxVal').textContent = (s.value > 0 ? '+' : '') + s.value.toFixed(1) + '%';
       document.getElementById('spxYear').textContent = fmtDate(s.date);
     }
-    const ct = last(store.cost);
-    if (ct) {
-      document.getElementById('cstVal').textContent = (ct.value > 0 ? '+' : '') + ct.value.toFixed(1) + '%';
-      document.getElementById('cstYear').textContent = fmtDate(ct.date);
-    }
+    [['cost', 'cst'], ['rsp', 'rsp'], ['wmt', 'wmt']].forEach(([key, id]) => {
+      const pt = last(store[key]);
+      if (!pt) return;
+      document.getElementById(id + 'Val').textContent = (pt.value > 0 ? '+' : '') + pt.value.toFixed(1) + '%';
+      document.getElementById(id + 'Year').textContent = fmtDate(pt.date);
+    });
   }
 
   function initSlider() {
@@ -1101,7 +1131,7 @@
   }
 
   function toggleSeries(idx) {
-    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt', 'tog-sp5', 'tog-spx', 'tog-cst'];
+    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt', 'tog-sp5', 'tog-spx', 'tog-cst', 'tog-rsp', 'tog-wmt'];
     const btn = document.getElementById(ids[idx]);
     if (hiddenSeries.has(idx)) {
       hiddenSeries.delete(idx);
@@ -1199,8 +1229,8 @@
   // in the current range. Both charts use this as their labels so x-ticks align.
   function overviewDates() {
     const series = [
-      store.hpi, store.cpi, store.mortgage, store.nasdaq, store.sp500, store.cost,
-      levelsStore.hpi, levelsStore.nasdaq, levelsStore.sp500, levelsStore.cost,
+      store.hpi, store.cpi, store.mortgage, store.nasdaq, store.sp500, store.cost, store.rsp, store.wmt,
+      levelsStore.hpi, levelsStore.nasdaq, levelsStore.sp500, levelsStore.cost, levelsStore.rsp, levelsStore.wmt,
     ];
     return [...new Set(series.flatMap(s => filteredSeries(s || []).map(d => d.date)))].sort();
   }
@@ -1213,6 +1243,8 @@
     const sp5Filt = filteredSeries(store.nasdaq);
     const spxFilt = filteredSeries(store.sp500);
     const cstFilt = filteredSeries(store.cost);
+    const rspFilt = filteredSeries(store.rsp);
+    const wmtFilt = filteredSeries(store.wmt);
 
     // Shared x-domain across both Overview charts so their ticks line up
     const dates = overviewDates();
@@ -1223,6 +1255,8 @@
     const sp5Map = new Map(sp5Filt.map(d => [d.date, +d.value.toFixed(2)]));
     const spxMap = new Map(spxFilt.map(d => [d.date, +d.value.toFixed(2)]));
     const cstMap = new Map(cstFilt.map(d => [d.date, +d.value.toFixed(2)]));
+    const rspMap = new Map(rspFilt.map(d => [d.date, +d.value.toFixed(2)]));
+    const wmtMap = new Map(wmtFilt.map(d => [d.date, +d.value.toFixed(2)]));
 
     chart.data.labels = dates;
     // During pan, suppress crosshair
@@ -1273,6 +1307,22 @@
         data: dates.map(d => cstMap.get(d) ?? null),
         hidden: hiddenSeries.has(5),
         borderColor: '#c77dff', backgroundColor: 'rgba(199,125,255,0.06)',
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
+        tension: 0.2, fill: false, spanGaps: false,
+      },
+      {
+        label: 'S&P Equal Weight / RSP (Trailing YoY)',
+        data: dates.map(d => rspMap.get(d) ?? null),
+        hidden: hiddenSeries.has(6),
+        borderColor: '#ff9f43', backgroundColor: 'rgba(255,159,67,0.06)',
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
+        tension: 0.2, fill: false, spanGaps: false,
+      },
+      {
+        label: 'Walmart / WMT (Trailing YoY)',
+        data: dates.map(d => wmtMap.get(d) ?? null),
+        hidden: hiddenSeries.has(7),
+        borderColor: '#ff70a6', backgroundColor: 'rgba(255,112,166,0.06)',
         borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
         tension: 0.2, fill: false, spanGaps: false,
       },
@@ -1337,6 +1387,10 @@
           ...filteredSeries(store.cpi).map(d => d.value),
           ...filteredSeries(store.mortgage).map(d => d.value),
           ...filteredSeries(store.nasdaq).map(d => d.value),
+          ...filteredSeries(store.sp500).map(d => d.value),
+          ...filteredSeries(store.cost).map(d => d.value),
+          ...filteredSeries(store.rsp).map(d => d.value),
+          ...filteredSeries(store.wmt).map(d => d.value),
         ].filter(v => v != null);
         if (allVis.length) {
           const yMin = Math.min(...allVis);
@@ -1394,8 +1448,10 @@
     { key: 'nasdaq', label: 'NASDAQ Composite',           color: '#ffd166', bg: 'rgba(255,209,102,0.06)', toggleIdx: 3 },
     { key: 'sp500',  label: 'S&P 500',                    color: '#2ec4b6', bg: 'rgba(46,196,182,0.06)',  toggleIdx: 4 },
     { key: 'cost',   label: 'Costco (COST)',              color: '#c77dff', bg: 'rgba(199,125,255,0.06)', toggleIdx: 5 },
+    { key: 'rsp',    label: 'S&P Equal Weight (RSP)',     color: '#ff9f43', bg: 'rgba(255,159,67,0.06)',  toggleIdx: 6 },
+    { key: 'wmt',    label: 'Walmart (WMT)',              color: '#ff70a6', bg: 'rgba(255,112,166,0.06)', toggleIdx: 7 },
   ];
-  let levelsStore = { hpi: [], nasdaq: [], sp500: [], cost: [] };
+  let levelsStore = { hpi: [], nasdaq: [], sp500: [], cost: [], rsp: [], wmt: [] };
   let levelsChart = null;
   let _levelsFrozenBases = null;   // { key: baseValue } while panning
 
