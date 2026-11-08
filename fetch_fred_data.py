@@ -28,6 +28,7 @@ SP500_START_YEAR = 1946  # matches CPI, the earliest-starting series on the main
 YAHOO_SERIES = [
     ('cost', 'COST', 1986),  # Costco, trades since Jul 1986
     ('lmt',  'LMT',  1985),  # Lockheed Martin, Yahoo history from Jan 1985
+    ('smh',  'SMH',  2000),  # VanEck Semiconductor ETF, Yahoo history from Jun 2000
 ]
 
 API_KEY = os.environ.get('FRED_API_KEY', '')

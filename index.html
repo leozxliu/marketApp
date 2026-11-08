@@ -34,6 +34,7 @@
       --spx:       #2ec4b6;
       --cst:       #c77dff;
       --lmt:       #ff9f43;
+      --smh:       #ff70a6;
     }
 
     body {
@@ -181,6 +182,7 @@
     .card.spx::before { background: var(--spx); }
     .card.cst::before { background: var(--cst); }
     .card.lmt::before { background: var(--lmt); }
+    .card.smh::before { background: var(--smh); }
     .card:hover { border-color: #353c55; }
 
     .card-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
@@ -192,6 +194,7 @@
     .card.spx .card-value { color: var(--spx); }
     .card.cst .card-value { color: var(--cst); }
     .card.lmt .card-value { color: var(--lmt); }
+    .card.smh .card-value { color: var(--smh); }
     .card-sub { font-size: 0.7rem; color: var(--muted); }
     .card-year { color: #4a5170; }
 
@@ -590,6 +593,11 @@
         <div class="card-value" id="lmtVal">—</div>
         <div class="card-sub"><span id="lmtPrice"></span> &middot; <span class="card-year" id="lmtYear"></span></div>
       </div>
+      <div class="card smh">
+        <div class="card-label">Semiconductors (SMH)</div>
+        <div class="card-value" id="smhVal">—</div>
+        <div class="card-sub"><span id="smhPrice"></span> &middot; <span class="card-year" id="smhYear"></span></div>
+      </div>
     </div>
     <div class="chart-workspace">
       <aside class="chart-side">
@@ -631,6 +639,9 @@
             </button>
             <button class="toggle-btn" id="tog-lmt" onclick="toggleSeries(6)">
               <span class="dot" style="background:#ff9f43"></span> Lockheed Martin / LMT (Trailing YoY)
+            </button>
+            <button class="toggle-btn" id="tog-smh" onclick="toggleSeries(7)">
+              <span class="dot" style="background:#ff70a6"></span> Semiconductors / SMH (Trailing YoY)
             </button>
           </div>
         </div>
@@ -806,7 +817,7 @@
     <span class="footer-sep">·</span>
     <a href="https://github.com/datasets/s-and-p-500" target="_blank" rel="noopener">S&amp;P 500 (Shiller data)</a>
     <span class="footer-sep">·</span>
-    <span>COST, LMT: Yahoo Finance</span>
+    <span>COST, LMT, SMH: Yahoo Finance</span>
     <span class="footer-sep">·</span>
     <span>Source: Federal Reserve Bank of St. Louis (FRED)</span>
   </div>
@@ -846,7 +857,7 @@
     showTab(location.hash.slice(1) || 'overview', false));
 
   let rangeStart, rangeEnd, dataMin, dataMax;
-  let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [], sp500: [], cost: [], lmt: [] };
+  let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [], sp500: [], cost: [], lmt: [], smh: [] };
   let chart = null;
   const hiddenSeries = new Set();
   let _panActive = false;
@@ -961,7 +972,7 @@
       const res = await fetch('fred_data.json');
       if (!res.ok) throw new Error();
       const data = await res.json();
-      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, nasdaq: data.nasdaq || [], sp500: data.sp500 || [], cost: data.cost || [], lmt: data.lmt || [] };
+      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, nasdaq: data.nasdaq || [], sp500: data.sp500 || [], cost: data.cost || [], lmt: data.lmt || [], smh: data.smh || [] };
 
       if (data.fetched_at) {
         document.getElementById('fetchedOn').textContent = data.fetched_at;
@@ -981,9 +992,10 @@
         sp500:  data.sp500_level  || [],
         cost:   data.cost_level   || [],
         lmt:    data.lmt_level    || [],
+        smh:    data.smh_level    || [],
       };
       // Equity cards show the latest close alongside trailing YoY
-      const priceIds = { cost: 'cstPrice', lmt: 'lmtPrice' };
+      const priceIds = { cost: 'cstPrice', lmt: 'lmtPrice', smh: 'smhPrice' };
       Object.entries(priceIds).forEach(([key, id]) => {
         const pt = last(levelsStore[key]);
         if (pt) document.getElementById(id).textContent = fmtUSD(pt.value);
@@ -1063,7 +1075,7 @@
       document.getElementById('spxVal').textContent = (s.value > 0 ? '+' : '') + s.value.toFixed(1) + '%';
       document.getElementById('spxYear').textContent = fmtDate(s.date);
     }
-    [['cost', 'cst'], ['lmt', 'lmt']].forEach(([key, id]) => {
+    [['cost', 'cst'], ['lmt', 'lmt'], ['smh', 'smh']].forEach(([key, id]) => {
       const pt = last(store[key]);
       if (!pt) return;
       document.getElementById(id + 'Val').textContent = (pt.value > 0 ? '+' : '') + pt.value.toFixed(1) + '%';
@@ -1119,7 +1131,7 @@
   }
 
   function toggleSeries(idx) {
-    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt', 'tog-sp5', 'tog-spx', 'tog-cst', 'tog-lmt'];
+    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt', 'tog-sp5', 'tog-spx', 'tog-cst', 'tog-lmt', 'tog-smh'];
     const btn = document.getElementById(ids[idx]);
     if (hiddenSeries.has(idx)) {
       hiddenSeries.delete(idx);
@@ -1217,8 +1229,8 @@
   // in the current range. Both charts use this as their labels so x-ticks align.
   function overviewDates() {
     const series = [
-      store.hpi, store.cpi, store.mortgage, store.nasdaq, store.sp500, store.cost, store.lmt,
-      levelsStore.hpi, levelsStore.nasdaq, levelsStore.sp500, levelsStore.cost, levelsStore.lmt,
+      store.hpi, store.cpi, store.mortgage, store.nasdaq, store.sp500, store.cost, store.lmt, store.smh,
+      levelsStore.hpi, levelsStore.nasdaq, levelsStore.sp500, levelsStore.cost, levelsStore.lmt, levelsStore.smh,
     ];
     return [...new Set(series.flatMap(s => filteredSeries(s || []).map(d => d.date)))].sort();
   }
@@ -1232,6 +1244,7 @@
     const spxFilt = filteredSeries(store.sp500);
     const cstFilt = filteredSeries(store.cost);
     const lmtFilt = filteredSeries(store.lmt);
+    const smhFilt = filteredSeries(store.smh);
 
     // Shared x-domain across both Overview charts so their ticks line up
     const dates = overviewDates();
@@ -1243,6 +1256,7 @@
     const spxMap = new Map(spxFilt.map(d => [d.date, +d.value.toFixed(2)]));
     const cstMap = new Map(cstFilt.map(d => [d.date, +d.value.toFixed(2)]));
     const lmtMap = new Map(lmtFilt.map(d => [d.date, +d.value.toFixed(2)]));
+    const smhMap = new Map(smhFilt.map(d => [d.date, +d.value.toFixed(2)]));
 
     chart.data.labels = dates;
     // During pan, suppress crosshair
@@ -1301,6 +1315,14 @@
         data: dates.map(d => lmtMap.get(d) ?? null),
         hidden: hiddenSeries.has(6),
         borderColor: '#ff9f43', backgroundColor: 'rgba(255,159,67,0.06)',
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
+        tension: 0.2, fill: false, spanGaps: false,
+      },
+      {
+        label: 'Semiconductors / SMH (Trailing YoY)',
+        data: dates.map(d => smhMap.get(d) ?? null),
+        hidden: hiddenSeries.has(7),
+        borderColor: '#ff70a6', backgroundColor: 'rgba(255,112,166,0.06)',
         borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
         tension: 0.2, fill: false, spanGaps: false,
       },
@@ -1368,6 +1390,7 @@
           ...filteredSeries(store.sp500).map(d => d.value),
           ...filteredSeries(store.cost).map(d => d.value),
           ...filteredSeries(store.lmt).map(d => d.value),
+          ...filteredSeries(store.smh).map(d => d.value),
         ].filter(v => v != null);
         if (allVis.length) {
           const yMin = Math.min(...allVis);
@@ -1426,8 +1449,9 @@
     { key: 'sp500',  label: 'S&P 500',                    color: '#2ec4b6', bg: 'rgba(46,196,182,0.06)',  toggleIdx: 4 },
     { key: 'cost',   label: 'Costco (COST)',              color: '#c77dff', bg: 'rgba(199,125,255,0.06)', toggleIdx: 5 },
     { key: 'lmt',    label: 'Lockheed Martin (LMT)',     color: '#ff9f43', bg: 'rgba(255,159,67,0.06)',  toggleIdx: 6 },
+    { key: 'smh',    label: 'Semiconductors (SMH)',      color: '#ff70a6', bg: 'rgba(255,112,166,0.06)', toggleIdx: 7 },
   ];
-  let levelsStore = { hpi: [], nasdaq: [], sp500: [], cost: [], lmt: [] };
+  let levelsStore = { hpi: [], nasdaq: [], sp500: [], cost: [], lmt: [], smh: [] };
   let levelsChart = null;
   let _levelsFrozenBases = null;   // { key: baseValue } while panning
 
