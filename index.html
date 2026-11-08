@@ -33,7 +33,7 @@
       --ndq:       #ffd166;
       --spx:       #2ec4b6;
       --cst:       #c77dff;
-      --rsp:       #ff9f43;
+      --lmt:       #ff9f43;
     }
 
     body {
@@ -180,7 +180,7 @@
     .card.ndq::before { background: var(--ndq); }
     .card.spx::before { background: var(--spx); }
     .card.cst::before { background: var(--cst); }
-    .card.rsp::before { background: var(--rsp); }
+    .card.lmt::before { background: var(--lmt); }
     .card:hover { border-color: #353c55; }
 
     .card-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
@@ -191,7 +191,7 @@
     .card.ndq .card-value { color: var(--ndq); }
     .card.spx .card-value { color: var(--spx); }
     .card.cst .card-value { color: var(--cst); }
-    .card.rsp .card-value { color: var(--rsp); }
+    .card.lmt .card-value { color: var(--lmt); }
     .card-sub { font-size: 0.7rem; color: var(--muted); }
     .card-year { color: #4a5170; }
 
@@ -585,10 +585,10 @@
         <div class="card-value" id="cstVal">—</div>
         <div class="card-sub"><span id="cstPrice"></span> &middot; <span class="card-year" id="cstYear"></span></div>
       </div>
-      <div class="card rsp">
-        <div class="card-label">S&amp;P Equal Weight (RSP)</div>
-        <div class="card-value" id="rspVal">—</div>
-        <div class="card-sub"><span id="rspPrice"></span> &middot; <span class="card-year" id="rspYear"></span></div>
+      <div class="card lmt">
+        <div class="card-label">Lockheed Martin (LMT)</div>
+        <div class="card-value" id="lmtVal">—</div>
+        <div class="card-sub"><span id="lmtPrice"></span> &middot; <span class="card-year" id="lmtYear"></span></div>
       </div>
     </div>
     <div class="chart-workspace">
@@ -629,8 +629,8 @@
             <button class="toggle-btn" id="tog-cst" onclick="toggleSeries(5)">
               <span class="dot" style="background:#c77dff"></span> Costco / COST (Trailing YoY)
             </button>
-            <button class="toggle-btn" id="tog-rsp" onclick="toggleSeries(6)">
-              <span class="dot" style="background:#ff9f43"></span> S&amp;P Equal Weight / RSP (Trailing YoY)
+            <button class="toggle-btn" id="tog-lmt" onclick="toggleSeries(6)">
+              <span class="dot" style="background:#ff9f43"></span> Lockheed Martin / LMT (Trailing YoY)
             </button>
           </div>
         </div>
@@ -806,7 +806,7 @@
     <span class="footer-sep">·</span>
     <a href="https://github.com/datasets/s-and-p-500" target="_blank" rel="noopener">S&amp;P 500 (Shiller data)</a>
     <span class="footer-sep">·</span>
-    <span>COST, RSP: Yahoo Finance</span>
+    <span>COST, LMT: Yahoo Finance</span>
     <span class="footer-sep">·</span>
     <span>Source: Federal Reserve Bank of St. Louis (FRED)</span>
   </div>
@@ -846,7 +846,7 @@
     showTab(location.hash.slice(1) || 'overview', false));
 
   let rangeStart, rangeEnd, dataMin, dataMax;
-  let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [], sp500: [], cost: [], rsp: [] };
+  let store = { cpi: [], mortgage: [], hpi: [], nasdaq: [], sp500: [], cost: [], lmt: [] };
   let chart = null;
   const hiddenSeries = new Set();
   let _panActive = false;
@@ -961,7 +961,7 @@
       const res = await fetch('fred_data.json');
       if (!res.ok) throw new Error();
       const data = await res.json();
-      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, nasdaq: data.nasdaq || [], sp500: data.sp500 || [], cost: data.cost || [], rsp: data.rsp || [] };
+      store = { cpi: data.cpi, mortgage: data.mortgage, hpi: data.hpi, nasdaq: data.nasdaq || [], sp500: data.sp500 || [], cost: data.cost || [], lmt: data.lmt || [] };
 
       if (data.fetched_at) {
         document.getElementById('fetchedOn').textContent = data.fetched_at;
@@ -980,10 +980,10 @@
         nasdaq: data.nasdaq_level || [],
         sp500:  data.sp500_level  || [],
         cost:   data.cost_level   || [],
-        rsp:    data.rsp_level    || [],
+        lmt:    data.lmt_level    || [],
       };
       // Equity cards show the latest close alongside trailing YoY
-      const priceIds = { cost: 'cstPrice', rsp: 'rspPrice' };
+      const priceIds = { cost: 'cstPrice', lmt: 'lmtPrice' };
       Object.entries(priceIds).forEach(([key, id]) => {
         const pt = last(levelsStore[key]);
         if (pt) document.getElementById(id).textContent = fmtUSD(pt.value);
@@ -1063,7 +1063,7 @@
       document.getElementById('spxVal').textContent = (s.value > 0 ? '+' : '') + s.value.toFixed(1) + '%';
       document.getElementById('spxYear').textContent = fmtDate(s.date);
     }
-    [['cost', 'cst'], ['rsp', 'rsp']].forEach(([key, id]) => {
+    [['cost', 'cst'], ['lmt', 'lmt']].forEach(([key, id]) => {
       const pt = last(store[key]);
       if (!pt) return;
       document.getElementById(id + 'Val').textContent = (pt.value > 0 ? '+' : '') + pt.value.toFixed(1) + '%';
@@ -1119,7 +1119,7 @@
   }
 
   function toggleSeries(idx) {
-    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt', 'tog-sp5', 'tog-spx', 'tog-cst', 'tog-rsp'];
+    const ids = ['tog-hpi', 'tog-cpi', 'tog-mrt', 'tog-sp5', 'tog-spx', 'tog-cst', 'tog-lmt'];
     const btn = document.getElementById(ids[idx]);
     if (hiddenSeries.has(idx)) {
       hiddenSeries.delete(idx);
@@ -1217,8 +1217,8 @@
   // in the current range. Both charts use this as their labels so x-ticks align.
   function overviewDates() {
     const series = [
-      store.hpi, store.cpi, store.mortgage, store.nasdaq, store.sp500, store.cost, store.rsp,
-      levelsStore.hpi, levelsStore.nasdaq, levelsStore.sp500, levelsStore.cost, levelsStore.rsp,
+      store.hpi, store.cpi, store.mortgage, store.nasdaq, store.sp500, store.cost, store.lmt,
+      levelsStore.hpi, levelsStore.nasdaq, levelsStore.sp500, levelsStore.cost, levelsStore.lmt,
     ];
     return [...new Set(series.flatMap(s => filteredSeries(s || []).map(d => d.date)))].sort();
   }
@@ -1231,7 +1231,7 @@
     const sp5Filt = filteredSeries(store.nasdaq);
     const spxFilt = filteredSeries(store.sp500);
     const cstFilt = filteredSeries(store.cost);
-    const rspFilt = filteredSeries(store.rsp);
+    const lmtFilt = filteredSeries(store.lmt);
 
     // Shared x-domain across both Overview charts so their ticks line up
     const dates = overviewDates();
@@ -1242,7 +1242,7 @@
     const sp5Map = new Map(sp5Filt.map(d => [d.date, +d.value.toFixed(2)]));
     const spxMap = new Map(spxFilt.map(d => [d.date, +d.value.toFixed(2)]));
     const cstMap = new Map(cstFilt.map(d => [d.date, +d.value.toFixed(2)]));
-    const rspMap = new Map(rspFilt.map(d => [d.date, +d.value.toFixed(2)]));
+    const lmtMap = new Map(lmtFilt.map(d => [d.date, +d.value.toFixed(2)]));
 
     chart.data.labels = dates;
     // During pan, suppress crosshair
@@ -1297,8 +1297,8 @@
         tension: 0.2, fill: false, spanGaps: false,
       },
       {
-        label: 'S&P Equal Weight / RSP (Trailing YoY)',
-        data: dates.map(d => rspMap.get(d) ?? null),
+        label: 'Lockheed Martin / LMT (Trailing YoY)',
+        data: dates.map(d => lmtMap.get(d) ?? null),
         hidden: hiddenSeries.has(6),
         borderColor: '#ff9f43', backgroundColor: 'rgba(255,159,67,0.06)',
         borderWidth: 2, pointRadius: 0, pointHoverRadius: 6,
@@ -1367,7 +1367,7 @@
           ...filteredSeries(store.nasdaq).map(d => d.value),
           ...filteredSeries(store.sp500).map(d => d.value),
           ...filteredSeries(store.cost).map(d => d.value),
-          ...filteredSeries(store.rsp).map(d => d.value),
+          ...filteredSeries(store.lmt).map(d => d.value),
         ].filter(v => v != null);
         if (allVis.length) {
           const yMin = Math.min(...allVis);
@@ -1425,9 +1425,9 @@
     { key: 'nasdaq', label: 'NASDAQ Composite',           color: '#ffd166', bg: 'rgba(255,209,102,0.06)', toggleIdx: 3 },
     { key: 'sp500',  label: 'S&P 500',                    color: '#2ec4b6', bg: 'rgba(46,196,182,0.06)',  toggleIdx: 4 },
     { key: 'cost',   label: 'Costco (COST)',              color: '#c77dff', bg: 'rgba(199,125,255,0.06)', toggleIdx: 5 },
-    { key: 'rsp',    label: 'S&P Equal Weight (RSP)',     color: '#ff9f43', bg: 'rgba(255,159,67,0.06)',  toggleIdx: 6 },
+    { key: 'lmt',    label: 'Lockheed Martin (LMT)',     color: '#ff9f43', bg: 'rgba(255,159,67,0.06)',  toggleIdx: 6 },
   ];
-  let levelsStore = { hpi: [], nasdaq: [], sp500: [], cost: [], rsp: [] };
+  let levelsStore = { hpi: [], nasdaq: [], sp500: [], cost: [], lmt: [] };
   let levelsChart = null;
   let _levelsFrozenBases = null;   // { key: baseValue } while panning
 
